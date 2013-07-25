@@ -1,0 +1,33 @@
+<?php
+/**
+ * Content Flow
+ * ================
+ * @website https://github.com/ryannmicua/ProcessContentFlow
+ * @author Ryann Micua <http://pogidude.com/>
+ * @license GPL 3 <http://www.gnu.org/licenses/gpl-3.0.txt>
+ * 
+ * An attempt to creating an editorial workflow in ProcessWire
+ */
+
+class ProcessContentFlow extends Process implements Module, ConfigurableModule {
+
+   public static function getModuleInfo() {
+      return array(
+         'title' => 'Content Flow',
+         'version' => 1,
+         'summary' => 'Adds an editorial workflow inside ProcessWire.',
+         'author' => 'Pogidude',
+         'singular' => true,
+         'autoload' => true,
+         'href' => 'https://github.com/ryannmicua/ProcessContentFlow'
+      );
+   }
+
+   public function init(){
+
+   }
+
+   public static function getModuleConfigInputFields( array $data ) {
+
+   }
+}
