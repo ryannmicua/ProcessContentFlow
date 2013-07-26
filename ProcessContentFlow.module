@@ -11,23 +11,126 @@
 
 class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
-   public static function getModuleInfo() {
+   protected static $_module_dir;
+   protected static $_module_url; 
+   protected static $defaults = array(
+      );
+
+   const PAGE_BASE_NAME = 'contentflow';
+   const PERMISSION_NAME = 'contentflow-access';
+
+   public function __construct(){
+      //set paths and urls
+      self::$_module_dir = $this->config->paths->siteModules . __CLASS__;
+      self::$_module_url = $this->config->urls->siteModules . __CLASS__;
+   }
+
+   public static function getModuleInfo(){
       return array(
          'title' => 'Content Flow',
          'version' => 1,
          'summary' => 'Adds an editorial workflow inside ProcessWire.',
          'author' => 'Pogidude',
-         'singular' => true,
-         'autoload' => true,
-         'href' => 'https://github.com/ryannmicua/ProcessContentFlow'
+         //'singular' => true,
+         'href' => 'https://github.com/ryannmicua/ProcessContentFlow',
+         'permission' => self::PERMISSION_NAME
       );
    }
 
    public function init(){
-
+      parent::init();
+      if(!$this->isPost) $this->modules->get('JqueryWireTabs');
    }
 
-   public static function getModuleConfigInputFields( array $data ) {
+   /**
+    * Execute and call render functions
+    * 
+    * @return html
+    */
+   public function ___execute(){
+      return $this->_render_ui();
+   }
 
+   /**
+    * Render our pages
+    */
+   private function _render_ui(){
+      $modules = $this->modules;
+
+      //$this->setFuel('processHeadline', 'Content Flow Here');
+      $form = $modules->get('InputfieldForm');
+      $form->attr('id', __CLASS__);
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('My Markup');
+      $field->attr('value', '<h4>Not my markup content</h4>');
+
+
+      $field2 = $modules->get('InputfieldMarkup');
+      $field2->label = $this->_('Second Markup');
+      $field2->attr('value', '<h4>Not my markup content</h4>');
+
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('title', 'Wrap Title');
+      $wrapper->attr('description', 'Wrapp');
+      $wrapper->add($field);
+      //$wrapper->append($field2);
+
+      $wrapper2 = new InputfieldWrapper();
+      $wrapper2->attr('title', 'Wrap Title');
+      $wrapper2->attr('description', 'Wrapp');
+      $wrapper2->add($field2);
+
+      $form->append($wrapper);
+      $form->append($wrapper2);
+      //$form->append($field2);
+
+      return $form->render();
+   }
+
+   public function ___install(){
+      
+      //see if we still need to create our page
+      $check_page = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
+      if(!$check_page->id){
+         //create our base settings page under "admin"
+         $cf_page = new Page();
+         $cf_page->template = $this->templates->get('admin');
+         $cf_page->parent = $this->pages->get($this->config->adminRootPageID);
+         $cf_page->title = 'Content Flow';
+         $cf_page->name = self::PAGE_BASE_NAME;
+         $cf_page->process = $this;
+         $cf_page->save();
+      }
+
+      //see if we still need to create our permissions
+      $check_permission = $this->permissions->get(self::PERMISSION_NAME);
+      if(!$check_permission->id){
+         $p = new Permission();
+         $p->name = self::PERMISSION_NAME;
+         $p->title = $this->_('Access Content Flow pages');
+         $p->save();
+      }
+   }
+
+   public function ___uninstall(){
+      $permission = $this->permissions->get(self::PERMISSION_NAME);
+      if($permission->id){
+         $permission->delete();
+      }
+
+      $page = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
+      if($page->id){
+         $page->delete();
+      }
+   }
+
+   public static function getModuleConfigInputFields( array $data ){
+      $data = array_merge(self::$defaults, $data);
+
+      $fields = new InputfieldWrapper();
+      $modules = wire('modules');
+
+      return $fields;
    }
 }
