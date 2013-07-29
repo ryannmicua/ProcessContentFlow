@@ -48,13 +48,13 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * @return html
     */
    public function ___execute(){
-      return $this->_render_ui();
+      return $this->_renderUI();
    }
 
    /**
     * Render our pages
     */
-   private function _render_ui(){
+   private function _renderUI(){
       $modules = $this->modules;
 
       //$this->setFuel('processHeadline', 'Content Flow Here');
@@ -81,12 +81,51 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $wrapper2->attr('description', 'Wrapp');
       $wrapper2->add($field2);
 
-      $form->append($wrapper);
-      $form->append($wrapper2);
+      //build our tabs
+      $form->append($this->buildFormDashboard());
+      $form->append($this->buildFormNotificationSettings());
       //$form->append($field2);
 
       return $form->render();
    }
+
+   /**
+    * Build the 'Dashboard' tab on the Content Flow form
+    */
+   protected function ___buildFormDashboard(){
+      $modules = $this->modules;
+
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'Dashboard');
+      $wrapper->attr('title', $this->_('Dashboard'));
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('My Markup');
+      $field->attr('value', '<h4>Not my markup content</h4>');
+
+      $wrapper->append($field);
+      return $wrapper;
+   }
+
+   /**
+    * Build the 'Notification Settings' tab
+    */
+   protected function ___buildFormNotificationSettings(){
+      $modules = $this->modules;
+
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'NotificationSettings');
+      $wrapper->attr('title', $this->_('Notification Settings'));
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('My Markup');
+      $field->attr('value', '<h4>Notification Saettings</h4>');
+
+      $wrapper->append($field);
+      return $wrapper;
+   }
+
+   
 
    public function ___install(){
       
