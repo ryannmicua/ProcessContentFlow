@@ -145,10 +145,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    public function ___install(){
 
       //create our custom templates
-      //$this->_createCustomTemplates();
+      $this->_createCustomTemplates();
 
       //create our custom admin pages
-      //$this->_createCustomPages();
+      $this->_createCustomPages();
 
    }
 
@@ -158,24 +158,29 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $permission->delete();
       }
 
-      $page = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
-      if($page->id){
-         $page->delete();
-      }
-
       //delete our cf tree
       $adminRootId = $this->config->adminRootPageID;
       $cfPage = $checkPage = $this->pages->get("template=admin,parent=$adminRootId,name=" . self::PAGE_BASE_NAME);
       if($cfPage->id){
          //delete cf page and all children permanently
-         $this->pages->delete($cfPage);
+         $this->pages->delete($cfPage, true);
       }
 
       $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
       if($checkHolderTemplate->id){
          //try to delete our custom template
          try{
+            
+            $holderfg = $checkHolderTemplate->fieldgroup;
+
+            $checkHolderTemplate->flags = Field::flagSystemOverride;
+            $checkHolderTemplate->flags = 0;
+            //$checkHolderTemplate->save();
             $this->templates->delete($checkHolderTemplate);
+
+            //TODO: check if other templates are using fieldgroup??
+            $this->fieldgroups->delete($holderfg);
+            
          } catch(Exception $e){
             //this can happen if *someone* uses our holder templates
          }
@@ -199,18 +204,32 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    private function _createCustomTemplates(){
       //create cf holder template and fieldgroup
       $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
-      if(!$checkHolderTemplate->id){
-         $holderfg = new Fieldgroup();
-         $holderfg->name = self::HOLDER_TEMPLATE_NAME; //fieldgroup and template have the same name
-         $holderfg->add($this->fields->get('title')); //required field
-         $holderfg->save();
+      if(is_null($checkHolderTemplate)){
+
+         $holderfg = $this->fieldgroups->get(self::HOLDER_TEMPLATE_NAME);
+         if(!$holderfg){
+            $holderfg = new Fieldgroup();
+            $holderfg->name = self::HOLDER_TEMPLATE_NAME; //fieldgroup and template have the same name
+            $holderfg->add($this->fields->get('title')); //required field
+            $holderfg->save();
+         } else {
+            //fieldgroup already exists
+            foreach($this->fieldgroups->getAll() as $fieldgroup){
+               $fgname = $fieldgroup->name;
+               if($fgname == self::HOLDER_TEMPLATE_NAME){
+                  $holderfg = $fieldgroup;
+                  break;
+               }
+            }
+         }
 
          $holderTemplate = new Template();
          $holderTemplate->name = self::HOLDER_TEMPLATE_NAME;
          $holderTemplate->fieldgroup = $holderfg;
-         $holderTemplate->flagSystem = 1;
+         $holderTemplate->flags = 1;
          $holderTemplate->noGlobal = 1;
          $holderTemplate->nameContentTab = 1;
+         $holderTemplate->flags = $this->template->flags | Template::flagSystem;
          $holderTemplate->save();
       }
    }
@@ -254,7 +273,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $pStatuses = new Page();
          $pStatuses->template = $holderTemplate;
          $pStatuses->parent = $cfRootPage;
-         $pStatuses->name = 'Status';
+         $pStatuses->name = 'status';
+         $pStatuses->title = $this->_('Status');
          $pStatuses->save();
 
          $statusRoot = $pStatuses;
