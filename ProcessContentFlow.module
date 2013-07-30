@@ -18,6 +18,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    const PAGE_BASE_NAME = 'contentflow';
    const PERMISSION_NAME = 'contentflow-access';
+   const STATUS_TEMPLATE_NAME = 'contentflow-status';
+   const HOLDER_TEMPLATE_NAME = 'contentflow-holder';
 
    public function __construct(){
       //set paths and urls
@@ -32,13 +34,19 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          'summary' => 'Adds an editorial workflow inside ProcessWire.',
          'author' => 'Pogidude',
          //'singular' => true,
+         //'autoload' => true,
          'href' => 'https://github.com/ryannmicua/ProcessContentFlow',
-         'permission' => self::PERMISSION_NAME
+         'permission' => self::PERMISSION_NAME,
+         'installs' => array('PageContentFlow')
       );
    }
 
+   /**
+    * Attach our hooks here
+    */
    public function init(){
       parent::init();
+      
       if(!$this->isPost) $this->modules->get('JqueryWireTabs');
    }
 
@@ -61,30 +69,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form = $modules->get('InputfieldForm');
       $form->attr('id', __CLASS__);
 
-      $field = $modules->get('InputfieldMarkup');
-      $field->label = $this->_('My Markup');
-      $field->attr('value', '<h4>Not my markup content</h4>');
-
-
-      $field2 = $modules->get('InputfieldMarkup');
-      $field2->label = $this->_('Second Markup');
-      $field2->attr('value', '<h4>Not my markup content</h4>');
-
-      $wrapper = new InputfieldWrapper();
-      $wrapper->attr('title', 'Wrap Title');
-      $wrapper->attr('description', 'Wrapp');
-      $wrapper->add($field);
-      //$wrapper->append($field2);
-
-      $wrapper2 = new InputfieldWrapper();
-      $wrapper2->attr('title', 'Wrap Title');
-      $wrapper2->attr('description', 'Wrapp');
-      $wrapper2->add($field2);
-
       //build our tabs
       $form->append($this->buildFormDashboard());
       $form->append($this->buildFormNotificationSettings());
-      //$form->append($field2);
 
       return $form->render();
    }
@@ -125,31 +112,44 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return $wrapper;
    }
 
-   
+   /**
+    * ======================================
+    * HOOKS GO BELOW
+    * ======================================
+    */
+
+
+
+   /**
+    * ======================================
+    * INSTALL, UNINSTALL, INPUTCONFIG
+    * ======================================
+    */
+   private function _getDefaults($type=''){
+      $statuses = array(
+         'pitch' => 'Pitch',
+         'assigned' => 'Assigned',
+         'draft' => 'Draft',
+         'pending-review' => 'Pending Review'
+         );
+
+      switch($type){
+         case 'status':
+         case 'statuses':
+            return $statuses;
+
+         default:
+      }
+   }
 
    public function ___install(){
-      
-      //see if we still need to create our page
-      $check_page = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
-      if(!$check_page->id){
-         //create our base settings page under "admin"
-         $cf_page = new Page();
-         $cf_page->template = $this->templates->get('admin');
-         $cf_page->parent = $this->pages->get($this->config->adminRootPageID);
-         $cf_page->title = 'Content Flow';
-         $cf_page->name = self::PAGE_BASE_NAME;
-         $cf_page->process = $this;
-         $cf_page->save();
-      }
 
-      //see if we still need to create our permissions
-      $check_permission = $this->permissions->get(self::PERMISSION_NAME);
-      if(!$check_permission->id){
-         $p = new Permission();
-         $p->name = self::PERMISSION_NAME;
-         $p->title = $this->_('Access Content Flow pages');
-         $p->save();
-      }
+      //create our custom templates
+      //$this->_createCustomTemplates();
+
+      //create our custom admin pages
+      //$this->_createCustomPages();
+
    }
 
    public function ___uninstall(){
@@ -162,6 +162,25 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if($page->id){
          $page->delete();
       }
+
+      //delete our cf tree
+      $adminRootId = $this->config->adminRootPageID;
+      $cfPage = $checkPage = $this->pages->get("template=admin,parent=$adminRootId,name=" . self::PAGE_BASE_NAME);
+      if($cfPage->id){
+         //delete cf page and all children permanently
+         $this->pages->delete($cfPage);
+      }
+
+      $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
+      if($checkHolderTemplate->id){
+         //try to delete our custom template
+         try{
+            $this->templates->delete($checkHolderTemplate);
+         } catch(Exception $e){
+            //this can happen if *someone* uses our holder templates
+         }
+      }
+
    }
 
    public static function getModuleConfigInputFields( array $data ){
@@ -171,5 +190,86 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $modules = wire('modules');
 
       return $fields;
+   }
+
+   /**
+    * HELPER FUNCTIONS
+    */
+   
+   private function _createCustomTemplates(){
+      //create cf holder template and fieldgroup
+      $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
+      if(!$checkHolderTemplate->id){
+         $holderfg = new Fieldgroup();
+         $holderfg->name = self::HOLDER_TEMPLATE_NAME; //fieldgroup and template have the same name
+         $holderfg->add($this->fields->get('title')); //required field
+         $holderfg->save();
+
+         $holderTemplate = new Template();
+         $holderTemplate->name = self::HOLDER_TEMPLATE_NAME;
+         $holderTemplate->fieldgroup = $holderfg;
+         $holderTemplate->flagSystem = 1;
+         $holderTemplate->noGlobal = 1;
+         $holderTemplate->nameContentTab = 1;
+         $holderTemplate->save();
+      }
+   }
+
+   private function _createCustomPages(){
+      
+      $templates = $this->templates;
+      $pages = $this->pages;
+
+      $holderTemplate = $templates->get(self::HOLDER_TEMPLATE_NAME);
+
+      //see if we still need to create our page
+      $checkPage = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
+      if(!$checkPage->id){
+         //create our base settings page under "admin"
+         $cfPage = new Page();
+         $cfPage->template = $templates->get('admin');
+         $cfPage->parent = $pages->get($this->config->adminRootPageID);
+         $cfPage->title = 'Content Flow';
+         $cfPage->name = self::PAGE_BASE_NAME;
+         $cfPage->process = $this;
+         $cfPage->save();
+
+         $cfRootPage = $cfPage;
+      } else {
+         $cfRootPage = $checkPage;
+      }
+
+      //see if we still need to create our permissions
+      $checkPermission = $this->permissions->get(self::PERMISSION_NAME);
+      if(!$checkPermission->id){
+         $perm = new Permission();
+         $perm->name = self::PERMISSION_NAME;
+         $perm->title = $this->_('Access Content Flow pages');
+         $perm->save();
+      }
+
+      //create our custom templates and fieldgroups
+      $checkStatuses = $pages->get("parent=$cfRootPage,name=contentflow-statuses");
+      if(!$checkStatuses->id){
+         $pStatuses = new Page();
+         $pStatuses->template = $holderTemplate;
+         $pStatuses->parent = $cfRootPage;
+         $pStatuses->name = 'Status';
+         $pStatuses->save();
+
+         $statusRoot = $pStatuses;
+      } else {
+         $statusRoot = $checkStatuses;
+      }
+
+      //create our default statuses
+      if(!$statusRoot->numChildren){
+         $defaultStatuses = $this->_getDefaults('status');
+         foreach($defaultStatuses as $name => $title){
+            $p = new Page();
+            $p->parent = $statusRoot;
+            $p->template = $holderTemplate;
+         }
+      }
    }
 }

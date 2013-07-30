@@ -1,0 +1,76 @@
+<?php
+
+class PageContentFlow extends WireData implements Module{
+
+   public static function getModuleInfo() {
+      return array(
+         'title' => 'Content Flow Tab', 
+         'version' => 1, 
+         'summary' => 'Adds a Publish Workflow Tab on pages.',
+         'singular' => true, 
+         'autoload' => true,
+         'requires' => array('ProcessContentFlow')
+      );
+   }
+
+   public function init(){
+      $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+   }
+
+
+   protected function ___buildFormWorkFlowTab(){
+      $modules = $this->modules;
+
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'WorkFlow');
+      $wrapper->attr('title', $this->_('Publishing Workflow'));
+
+      $statusField = $modules->get('InputfieldSelect');
+      $statusField->label = $this->_('Status');
+      $statusField->attr('id+name', 'cfstatus');
+      $statusField->attr('value', $this->page->cfstatus);
+      //$statusField->required = true;
+      
+      $statuses = array('Pitch', 'Assigned', 'In Progress', 'Draft', 'Pending Review');
+      foreach($statuses as $status){
+         $statusField->addOption($status,$status);
+      }
+      $wrapper->append($statusField);
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('Workflow here');
+      $field->attr('value', '<h4>This will be where workflow settings will go</h4>');
+
+      $wrapper->append($field);
+      return $wrapper;
+   }
+
+   /**
+    * ======================================
+    * HOOKS GO BELOW
+    * ======================================
+    */
+
+
+   public function hookPageBuildForm(HookEvent $event){
+      $form = $event->return;
+
+      //get the 'Content' tab input field wrapper so we can append our tab after this
+      $contentTab = $form->children('id=ProcessPageEditContent')->first();
+
+      if($contentTab->id){
+         $event->return = $form->insertAfter($this->buildFormWorkFlowTab(), $contentTab);
+      } else {
+         $event->return = $form->append($this->buildFormWorkFlowTab());
+      }
+
+      $field = $this->modules->get('InputfieldSubmit');
+      $field->attr('id+name', 'preview'); 
+      $field->attr('class', $field->class); 
+      $field->attr('value', 'Previewer'); 
+
+      $event->return = $form->append($field); 
+
+   }
+
+}
