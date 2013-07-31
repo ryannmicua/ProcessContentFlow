@@ -11,6 +11,9 @@
 
 class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
+   protected $form;
+   protected $isPost;
+
    protected static $_module_dir;
    protected static $_module_url; 
    protected static $defaults = array(
@@ -45,6 +48,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Attach our hooks here
     */
    public function init(){
+      //determine if we're going to be dealing with a save/post request
+      $this->isPost = ($this->input->post->isPost == 'true' && true);
+
       parent::init();
       
       if(!$this->isPost) $this->modules->get('JqueryWireTabs');
@@ -56,24 +62,62 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * @return html
     */
    public function ___execute(){
-      return $this->_renderUI();
+
+      if($this->isPost){
+         $this->processSave();
+      }
+
+      return $this->renderUI();
    }
 
    /**
     * Render our pages
     */
-   private function _renderUI(){
+   protected function renderUI(){
       $modules = $this->modules;
 
       //$this->setFuel('processHeadline', 'Content Flow Here');
-      $form = $modules->get('InputfieldForm');
-      $form->attr('id', __CLASS__);
+      $this->form = $modules->get('InputfieldForm');
+      $this->form->attr('id', __CLASS__);
+      $this->form->setTrackChanges();
 
       //build our tabs
-      $form->append($this->buildFormDashboard());
-      $form->append($this->buildFormNotificationSettings());
+      $this->form->append($this->buildFormDashboard());
+      $this->form->append($this->buildFormNotificationSettings());
+      $this->form->append($this->buildFormStatusSettings());
 
-      return $form->render();
+      $saveField = $modules->get('InputfieldSubmit');
+      $saveField->attr('name', 'submit_save');
+      $saveField->attr('id', 'submitSave');
+      $saveField->class .= ' head_button_clone';
+      $saveField->attr('value', $this->_('Save Settings'));
+      $this->form->append($saveField);
+
+      $hidden = $modules->get('InputfieldHidden');
+      $hidden->attr('name', 'isPost');
+      $hidden->attr('value', 'true');
+      $this->form->append($hidden);
+
+      return $this->form->render();
+   }
+
+   /**
+    * Process submission
+    */
+   protected function processSave(){
+      $message = 'Saved Settings';
+      $this->message($message);
+
+      $this->processSaveRedirect($this->redirectUrl);
+   }
+
+   /**
+    * Perform an after save redirect
+    */
+   protected function ___processSaveRedirect($redirectUrl){
+      if(!$redirectUrl) $redirectUrl = './?s=1';
+      $this->redirectUrl = $redirectUrl;
+      $this->session->redirect($redirectUrl);
    }
 
    /**
@@ -107,6 +151,56 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('My Markup');
       $field->attr('value', '<h4>Notification Saettings</h4>');
+
+      $wrapper->append($field);
+      return $wrapper;
+   }
+
+   /**
+    * Build 'Status Settings' tab
+    */
+   protected function ___buildFormStatusSettings(){
+      $languages = $this->languages;
+      $language = $this->user->language; 
+      $modules = $this->modules;
+
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'StatusSettings');
+      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'));
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('Status Settings');
+      $field->attr('value', '<h4>Status Settings</h4>');
+
+      $fieldTemplates = $modules->get('InputfieldSelect');
+      $fieldTemplates->label = $this->_('Specify which templates should have publishing workflow');
+      $fieldTemplates->attr('id', 'templatesWithWorkflow');
+      $fieldTemplates->attr('name', 'templates_with_workflow');
+      $fieldTemplates->attr('value', $this->templates_with_workflow);
+
+      foreach($this->templates as $template){
+         $label = '';
+         if($languages && $language) $label = $template->get('label' . $language->id); 
+         if(!$label) $label = $template->label ? $template->label : $template->name;
+         $fieldTemplates->addOption($template->id, $label);
+      }
+
+      $wrapper->append($fieldTemplates);
+      return $wrapper;
+   }
+
+   /**
+    * Build 'Workflow Settings' tab
+    */
+   protected function ___buildWorkflowSettings(){
+      $modules = $this->modules;
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'WorkflowSettings');
+      $wrapper->attr('title', $this->_('Workflow Settings'));
+
+      $field = $modules->get('InputfieldSelect');
+      $field->label = $this->_('Use workflow stages');
+      $field->attr('value', '<h4>Status Settings</h4>');
 
       $wrapper->append($field);
       return $wrapper;
@@ -232,6 +326,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $holderTemplate->flags = $this->template->flags | Template::flagSystem;
          $holderTemplate->save();
       }
+   }
+
+   private function _addTemplateFields(){
+
    }
 
    private function _createCustomPages(){
