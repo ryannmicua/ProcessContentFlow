@@ -13,15 +13,16 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    protected $form;
    protected $isPost;
+   protected $data = array();
 
    protected static $_module_dir;
    protected static $_module_url; 
    protected static $defaults = array(
       );
 
-   const PAGE_BASE_NAME = 'contentflow';
    const PERMISSION_NAME = 'contentflow-access';
-   const STATUS_TEMPLATE_NAME = 'contentflow-status';
+   const PAGE_BASE_NAME = 'contentflow';
+   const BASE_TEMPLATE_NAME = 'contentflow';
    const HOLDER_TEMPLATE_NAME = 'contentflow-holder';
 
    public function __construct(){
@@ -54,6 +55,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       parent::init();
       
       if(!$this->isPost) $this->modules->get('JqueryWireTabs');
+
+      $this->data = $this->modules->getModuleConfigData($this);
+
    }
 
    /**
@@ -63,9 +67,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    public function ___execute(){
 
-      if($this->isPost){
-         $this->processSave();
-      }
+      if($this->isPost) $this->processSave();
 
       return $this->renderUI();
    }
@@ -106,7 +108,18 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    protected function processSave(){
       $message = 'Saved Settings';
-      $this->message($message);
+      $post = $this->input->post;
+      $data = array();
+
+      if($post->templates_with_workflow){
+         $data['templates_with_workflow'] = $post->templates_with_workflow;
+      }
+
+      if($this->modules->saveModuleConfigData($this, $data)){
+         $this->message($message);
+      } else {
+         $this->error('Problem saving settings');
+      }
 
       $this->processSaveRedirect($this->redirectUrl);
    }
@@ -166,13 +179,13 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
-      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'));
+      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'.$this->page->template->name));
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('Status Settings');
       $field->attr('value', '<h4>Status Settings</h4>');
 
-      $fieldTemplates = $modules->get('InputfieldSelect');
+      $fieldTemplates = $modules->get('InputfieldAsmSelect');
       $fieldTemplates->label = $this->_('Specify which templates should have publishing workflow');
       $fieldTemplates->attr('id', 'templatesWithWorkflow');
       $fieldTemplates->attr('name', 'templates_with_workflow');
@@ -269,7 +282,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
             $checkHolderTemplate->flags = Field::flagSystemOverride;
             $checkHolderTemplate->flags = 0;
-            //$checkHolderTemplate->save();
+            $checkHolderTemplate->save();
             $this->templates->delete($checkHolderTemplate);
 
             //TODO: check if other templates are using fieldgroup??
@@ -325,6 +338,36 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $holderTemplate->nameContentTab = 1;
          $holderTemplate->flags = $this->template->flags | Template::flagSystem;
          $holderTemplate->save();
+      }
+
+      //create template for base page
+      $baseTemplate = $this->templates->get(self::BASE_TEMPLATE_NAME);
+      if(is_null($baseTemplate)){
+         $basefg = $this->fieldgroups->get(self::BASE_TEMPLATE_NAME);
+         if(!$basefg){
+            $basefg = new Fieldgroup();
+            $basefg->name = self::BASE_TEMPLATE_NAME; //fieldgroup and template have the same name
+            $basefg->add($this->fields->get('title')); //required field
+            $basefg->save();
+         } else {
+            //fieldgroup already exists
+            foreach($this->fieldgroups->getAll() as $fieldgroup){
+               $fgname = $fieldgroup->name;
+               if($fgname == self::BASE_TEMPLATE_NAME){
+                  $basefg = $fieldgroup;
+                  break;
+               }
+            }
+         }
+
+         $baseTemplate = new Template();
+         $baseTemplate->name = self::BASE_TEMPLATE_NAME;
+         $baseTemplate->fieldgroup = $basefg;
+         $baseTemplate->flags = 1;
+         $baseTemplate->noGlobal = 1;
+         $baseTemplate->nameContentTab = 1;
+         $baseTemplate->flags = $this->template->flags | Template::flagSystem;
+         $baseTemplate->save(); 
       }
    }
 
