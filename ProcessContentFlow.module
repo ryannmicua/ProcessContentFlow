@@ -15,20 +15,20 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected $isPost;
    protected $data = array();
 
-   protected static $_module_dir;
-   protected static $_module_url; 
+   protected static $module_dir;
+   protected static $module_url; 
    protected static $defaults = array(
       );
 
    const PERMISSION_NAME = 'contentflow-access';
-   const PAGE_BASE_NAME = 'contentflow';
-   const BASE_TEMPLATE_NAME = 'contentflow';
+   const ROOT_PAGE_NAME = 'contentflow';
+   const ROOT_TEMPLATE_NAME = 'contentflow';
    const HOLDER_TEMPLATE_NAME = 'contentflow-holder';
 
    public function __construct(){
       //set paths and urls
-      self::$_module_dir = $this->config->paths->siteModules . __CLASS__;
-      self::$_module_url = $this->config->urls->siteModules . __CLASS__;
+      self::$module_dir = $this->config->paths->siteModules . __CLASS__;
+      self::$module_url = $this->config->urls->siteModules . __CLASS__;
    }
 
    public static function getModuleInfo(){
@@ -249,7 +249,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    private function _getStuff($type=''){
-      $templates = array( self::BASE_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
+      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
 
       switch($type){
          case 'templates':
@@ -278,7 +278,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //delete our cf tree
       $adminRootId = $this->config->adminRootPageID;
-      $cfPage = $checkPage = $this->pages->get("template=admin,parent=$adminRootId,name=" . self::PAGE_BASE_NAME);
+      $cfPage = $checkPage = $this->pages->get("template=admin,parent=$adminRootId,name=" . self::ROOT_PAGE_NAME);
       if($cfPage->id){
          //delete cf page and all children permanently
          $this->pages->delete($cfPage, true);
@@ -344,7 +344,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    private function _createCustomTemplates(){
       $templatesToCreate = array( 
          self::HOLDER_TEMPLATE_NAME,
-         self::BASE_TEMPLATE_NAME
+         self::ROOT_TEMPLATE_NAME
       );
 
       foreach( $this->_getStuff('templates') as $tname ){
@@ -385,14 +385,14 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $holderTemplate = $templates->get(self::HOLDER_TEMPLATE_NAME);
 
       //see if we still need to create our page
-      $checkPage = $this->pages->get('template=admin,name=' . self::PAGE_BASE_NAME);
+      $checkPage = $this->pages->get('template=admin,name=' . self::ROOT_PAGE_NAME);
       if(!$checkPage->id){
          //create our base settings page under "admin"
          $cfPage = new Page();
          $cfPage->template = $templates->get('admin');
          $cfPage->parent = $pages->get($this->config->adminRootPageID);
          $cfPage->title = 'Content Flow';
-         $cfPage->name = self::PAGE_BASE_NAME;
+         $cfPage->name = self::ROOT_PAGE_NAME;
          $cfPage->process = $this;
          $cfPage->save();
 
