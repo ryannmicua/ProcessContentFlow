@@ -109,13 +109,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function processSave(){
       $message = 'Saved Settings';
       $post = $this->input->post;
-      $data = array();
 
-      if($post->templates_with_workflow){
-         $data['templates_with_workflow'] = $post->templates_with_workflow;
-      }
+      $this->setModuleData('templates_with_workflow', $post->templates_with_workflow);
 
-      if($this->modules->saveModuleConfigData($this, $data)){
+
+      if($this->saveModuleData()){
          $this->message($message);
       } else {
          $this->error('Problem saving settings');
@@ -145,7 +143,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('My Markup');
-      $field->attr('value', '<h4>Not my markup content</h4>');
+      $field->attr('value', '<pre><code>'.print_r($this->data,true).'</code></pre>');
 
       $wrapper->append($field);
       return $wrapper;
@@ -179,7 +177,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
-      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'.$this->page->template->name));
+      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'));
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('Status Settings');
@@ -246,6 +244,19 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             return $statuses;
 
          default:
+            return array();
+      }
+   }
+
+   private function _getStuff($type=''){
+      $templates = array( self::BASE_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
+
+      switch($type){
+         case 'templates':
+            return $templates;
+
+         default:
+            return array();
       }
    }
 
@@ -273,23 +284,25 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $this->pages->delete($cfPage, true);
       }
 
-      $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
-      if($checkHolderTemplate->id){
-         //try to delete our custom template
-         try{
-            
-            $holderfg = $checkHolderTemplate->fieldgroup;
+      //remove our custom templates
+      foreach($this->_getStuff('templates') as $tname){
+         $temp = $this->templates->get($tname);
+         if($temp->id){
+            //try to delete our custom template
+            try{
+               $fg = $temp->fieldgroup;
 
-            $checkHolderTemplate->flags = Field::flagSystemOverride;
-            $checkHolderTemplate->flags = 0;
-            $checkHolderTemplate->save();
-            $this->templates->delete($checkHolderTemplate);
+               $temp->flags = Template::flagSystemOverride;
+               $temp->flags = 0;
+               $temp->save();
+               $this->templates->delete($temp);
 
-            //TODO: check if other templates are using fieldgroup??
-            $this->fieldgroups->delete($holderfg);
-            
-         } catch(Exception $e){
-            //this can happen if *someone* uses our holder templates
+               //TODO: check if other templates are using fieldgroup??
+               $this->fieldgroups->delete($fg);
+               
+            } catch(Exception $e){
+               //this can happen if *someone* uses our holder templates
+            }
          }
       }
 
@@ -308,66 +321,54 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * HELPER FUNCTIONS
     */
    
+   /**
+    * Set module data on $this->data but won't actually save module data. To save,
+    * call $this->saveModuleData()
+    * 
+    * @param string $key
+    * @param mixed $value
+    */
+   protected function setModuleData($key, $value){
+      $this->data[$key] = $value;
+   }
+
+   /**
+    * Saves the data array stored on $this->data
+    *
+    * return bool true on success otherwise false
+    */
+   protected function saveModuleData(){
+      return $this->modules->saveModuleConfigData($this, $this->data);
+   }
+   
    private function _createCustomTemplates(){
-      //create cf holder template and fieldgroup
-      $checkHolderTemplate = $this->templates->get(self::HOLDER_TEMPLATE_NAME);
-      if(is_null($checkHolderTemplate)){
+      $templatesToCreate = array( 
+         self::HOLDER_TEMPLATE_NAME,
+         self::BASE_TEMPLATE_NAME
+      );
 
-         $holderfg = $this->fieldgroups->get(self::HOLDER_TEMPLATE_NAME);
-         if(!$holderfg){
-            $holderfg = new Fieldgroup();
-            $holderfg->name = self::HOLDER_TEMPLATE_NAME; //fieldgroup and template have the same name
-            $holderfg->add($this->fields->get('title')); //required field
-            $holderfg->save();
-         } else {
-            //fieldgroup already exists
-            foreach($this->fieldgroups->getAll() as $fieldgroup){
-               $fgname = $fieldgroup->name;
-               if($fgname == self::HOLDER_TEMPLATE_NAME){
-                  $holderfg = $fieldgroup;
-                  break;
-               }
+      foreach( $this->_getStuff('templates') as $tname ){
+
+         $temp = $this->templates->get($tname);
+         if(is_null($temp)){
+
+            $fg = $this->fieldgroups->get($tname);
+            if(!$fg){
+               $fg = new Fieldgroup();
+               $fg->name = $tname; //fieldgroup and template have the same name
+               $fg->add($this->fields->get('title')); //required field
+               $fg->save();
             }
+
+            $temp = new Template();
+            $temp->name = $tname;
+            $temp->fieldgroup = $fg;
+            $temp->flags = 1;
+            $temp->noGlobal = 1;
+            $temp->nameContentTab = 1;
+            $temp->flags = $this->template->flags | Template::flagSystem;
+            $temp->save();
          }
-
-         $holderTemplate = new Template();
-         $holderTemplate->name = self::HOLDER_TEMPLATE_NAME;
-         $holderTemplate->fieldgroup = $holderfg;
-         $holderTemplate->flags = 1;
-         $holderTemplate->noGlobal = 1;
-         $holderTemplate->nameContentTab = 1;
-         $holderTemplate->flags = $this->template->flags | Template::flagSystem;
-         $holderTemplate->save();
-      }
-
-      //create template for base page
-      $baseTemplate = $this->templates->get(self::BASE_TEMPLATE_NAME);
-      if(is_null($baseTemplate)){
-         $basefg = $this->fieldgroups->get(self::BASE_TEMPLATE_NAME);
-         if(!$basefg){
-            $basefg = new Fieldgroup();
-            $basefg->name = self::BASE_TEMPLATE_NAME; //fieldgroup and template have the same name
-            $basefg->add($this->fields->get('title')); //required field
-            $basefg->save();
-         } else {
-            //fieldgroup already exists
-            foreach($this->fieldgroups->getAll() as $fieldgroup){
-               $fgname = $fieldgroup->name;
-               if($fgname == self::BASE_TEMPLATE_NAME){
-                  $basefg = $fieldgroup;
-                  break;
-               }
-            }
-         }
-
-         $baseTemplate = new Template();
-         $baseTemplate->name = self::BASE_TEMPLATE_NAME;
-         $baseTemplate->fieldgroup = $basefg;
-         $baseTemplate->flags = 1;
-         $baseTemplate->noGlobal = 1;
-         $baseTemplate->nameContentTab = 1;
-         $baseTemplate->flags = $this->template->flags | Template::flagSystem;
-         $baseTemplate->save(); 
       }
    }
 
@@ -379,6 +380,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       
       $templates = $this->templates;
       $pages = $this->pages;
+      $data = array();
 
       $holderTemplate = $templates->get(self::HOLDER_TEMPLATE_NAME);
 
@@ -398,6 +400,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       } else {
          $cfRootPage = $checkPage;
       }
+
+      //save our cf root page id so we can reference this later.
+      $this->setModuleData('root_page_id', $cfRootPage->id);
+
 
       //see if we still need to create our permissions
       $checkPermission = $this->permissions->get(self::PERMISSION_NAME);
@@ -430,7 +436,13 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $p = new Page();
             $p->parent = $statusRoot;
             $p->template = $holderTemplate;
+            $p->name = $name;
+            $p->title = $title;
+            $p->save();
          }
       }
+
+      //save moduled data
+      $this->saveModuleData();
    }
 }
