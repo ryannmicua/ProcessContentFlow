@@ -49,6 +49,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Attach our hooks here
     */
    public function init(){
+      $this->page->setOutputFormatting(false); 
+
       //determine if we're going to be dealing with a save/post request
       $this->isPost = ($this->input->post->isPost == 'true' && true);
 
@@ -69,6 +71,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //$this->setFuel('processHeadline', 'Content Flow Here');
       $this->form = $this->modules->get('InputfieldForm');
+
       $this->form = $this->buildForm($this->form);
       $this->form->setTrackChanges();
 
@@ -95,13 +98,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $message = 'Saved Settings';
       $post = $this->input->post;
       $page = $this->page;
-      $page->of(false);
-
-      $this->setModuleData('templates_with_workflow', $post->templates_with_workflow);
       
-      //$page->templates_with_workflow = $post->templates_with_workflow;
-      $this->message(print_r($post->templates_with_workflow,true));
       $this->processInput($this->form);
+
+      foreach(array_unique($this->page->getChanges()) as $change) {
+         $this->message(sprintf($this->_('Change: %s'), $change)); // Message shown for each changed field
+      }
 
       if($page->save()){
          $this->message($message);
@@ -116,26 +118,29 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Process Input from submitted form
     */
    protected function ___processInput(Inputfield $form, $level = 0){
-      static $onlyFields = array(
-         'templates_with_workflow'
+      static $skipFields = array(
+         'submit_save',
+         'isPost'
          );
 
-      if(!$level) $form->processInput($this->input->post);
+      if(!$level){
+         $form->processInput($this->input->post);
+      }
 
       $languages = $this->languages;
 
       foreach($form as $inputfield){
          $name = $inputfield->attr('name');
-         if($name) $this->message('process ' . $name);
 
-         if(!in_array($name, $onlyFields)) continue;
+         if(in_array($name, $onlyFields)) continue;
 
-         $this->message('processing ' . $name);
          if($name && $inputfield->isChanged()){
             $this->page->set($name, $inputfield->value);
          }
 
-         if($inputfield instanceof InputfieldWrapper && count($inputfield->getChildren())) $this->processInput($inputfield, $level + 1); 
+         if($inputfield instanceof InputfieldWrapper && count($inputfield->getChildren())){
+            $this->processInput($inputfield, $level + 1); 
+         }
       }
    }
 
@@ -157,8 +162,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->attr('id', __CLASS__);
 
       //build our tabs
-      //$form->append($this->buildFormDashboard());
-      //$form->append($this->buildFormNotificationSettings());
+      $form->append($this->buildFormDashboard());
+      $form->append($this->buildFormNotificationSettings());
       $form->append($this->buildFormStatusSettings());
 
       $saveField = $modules->get('InputfieldSubmit');
@@ -188,7 +193,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('My Markup');
-      $field->attr('value', '<pre><code>'.print_r($this->data,true).'</code></pre>');
+      $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
 
       $wrapper->append($field);
       return $wrapper;
@@ -221,8 +226,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $page = $this->page;
       $modules = $this->modules;
 
-   
-
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
       $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'));
@@ -246,6 +249,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $fieldTemplates->addOption($template->id, $label);
       }
 */
+      $fields = $page->getInputfields();
+
       //$field = $page->template->fieldgroup->getField('templates_with_workflow');
       $field = $page->fields->get('templates_with_workflow');
       $fieldTemplates = $field->getInputfield($page);
@@ -253,7 +258,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $this->error('Could not display Templates field');
       } else {
          
-         //$fieldTemplates->attr('value', $page->templates_with_workflow);
+         $fieldTemplates->value = $page->get($field->name);
 
          $wrapper->append($fieldTemplates);
       }
