@@ -86,7 +86,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       //build our tabs
       $this->form->append($this->buildFormDashboard());
       $this->form->append($this->buildFormNotificationSettings());
-      $this->form->append($this->buildFormStatusSettings());
+      //$this->form->append($this->buildFormStatusSettings());
 
       $saveField = $modules->get('InputfieldSubmit');
       $saveField->attr('name', 'submit_save');
@@ -227,38 +227,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    /**
     * ======================================
-    * INSTALL, UNINSTALL, INPUTCONFIG
+    * INSTALL, UNINSTALL, INPUTCONFIG, SETTINGS
     * ======================================
     */
-   private function _getDefaults($type=''){
-      $statuses = array(
-         'pitch' => 'Pitch',
-         'assigned' => 'Assigned',
-         'draft' => 'Draft',
-         'pending-review' => 'Pending Review'
-         );
 
-      switch($type){
-         case 'status':
-         case 'statuses':
-            return $statuses;
-
-         default:
-            return array();
-      }
-   }
-
-   private function _getStuff($type=''){
-      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
-
-      switch($type){
-         case 'templates':
-            return $templates;
-
-         default:
-            return array();
-      }
-   }
 
    public function ___install(){
 
@@ -305,6 +277,36 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $modules = wire('modules');
 
       return $fields;
+   }
+
+   private function _getDefaults($type=''){
+      $statuses = array(
+         'pitch' => 'Pitch',
+         'assigned' => 'Assigned',
+         'draft' => 'Draft',
+         'pending-review' => 'Pending Review'
+         );
+
+      switch($type){
+         case 'status':
+         case 'statuses':
+            return $statuses;
+
+         default:
+            return array();
+      }
+   }
+
+   private function _getStuff($type=''){
+      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
+
+      switch($type){
+         case 'templates':
+            return $templates;
+
+         default:
+            return array();
+      }
    }
 
    /**
@@ -357,7 +359,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $temp->noGlobal = 1;
             $temp->nameContentTab = 1;
             $temp->flags = $this->template->flags | Template::flagSystem;
-            $temp->save();
+            if($temp->save()){
+               $this->message('Created template: ' . $tname);
+            } else {
+               $this->error('Problem creating template: ' . $tname);
+            }
          }
       }
    }
@@ -365,7 +371,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    private function _deleteCustomTemplates(){
       foreach($this->_getStuff('templates') as $tname){
          $temp = $this->templates->get($tname);
-         if($temp->id){
+         if(!is_null($temp)){
             //try to delete our custom template
             try{
                $fg = $temp->fieldgroup;
@@ -388,10 +394,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             }
          }
       }
-   }
-
-   private function _addTemplateFields(){
-
    }
 
    private function _createFields(){
@@ -431,6 +433,25 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             }
          }
       }
+
+   }
+
+   private function _addTemplateFields(){
+      $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
+      $baseTemplateFields = array('templates_with_workflow');
+      if(is_null($baseTemplate)){
+         $this->error('Error adding fields to base template (' . self::ROOT_TEMPLATE_NAME . ') because it does not exist.');
+      } else {
+         foreach($baseTemplateFields as $fieldName){
+            $baseTemplate->fields->add($fieldName);
+            if($baseTemplate->fields->save()){
+               $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
+            }  
+         }
+      }
+   }
+
+   protected function ___setupRootTemplate(){
 
    }
 
