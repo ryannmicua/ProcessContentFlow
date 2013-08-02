@@ -67,6 +67,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    public function ___execute(){
 
+      //$this->setFuel('processHeadline', 'Content Flow Here');
+      $this->form = $this->modules->get('InputfieldForm');
+      $this->form = $this->buildForm($this->form);
+      $this->form->setTrackChanges();
+
       if($this->isPost) $this->processSave();
 
       return $this->renderUI();
@@ -76,29 +81,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Render our pages
     */
    protected function renderUI(){
-      $modules = $this->modules;
 
       //$this->setFuel('processHeadline', 'Content Flow Here');
-      $this->form = $modules->get('InputfieldForm');
-      $this->form->attr('id', __CLASS__);
-      $this->form->setTrackChanges();
-
-      //build our tabs
-      $this->form->append($this->buildFormDashboard());
-      $this->form->append($this->buildFormNotificationSettings());
-      //$this->form->append($this->buildFormStatusSettings());
-
-      $saveField = $modules->get('InputfieldSubmit');
-      $saveField->attr('name', 'submit_save');
-      $saveField->attr('id', 'submitSave');
-      $saveField->class .= ' head_button_clone';
-      $saveField->attr('value', $this->_('Save Settings'));
-      $this->form->append($saveField);
-
-      $hidden = $modules->get('InputfieldHidden');
-      $hidden->attr('name', 'isPost');
-      $hidden->attr('value', 'true');
-      $this->form->append($hidden);
+      
 
       return $this->form->render();
    }
@@ -109,11 +94,16 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function processSave(){
       $message = 'Saved Settings';
       $post = $this->input->post;
+      $page = $this->page;
+      $page->of(false);
 
       $this->setModuleData('templates_with_workflow', $post->templates_with_workflow);
+      
+      //$page->templates_with_workflow = $post->templates_with_workflow;
+      //$this->message(print_r($post->templates_with_workflow,true));
+      $this->processInput($this->form);
 
-
-      if($this->saveModuleData()){
+      if($page->save()){
          $this->message($message);
       } else {
          $this->error('Problem saving settings');
@@ -123,12 +113,64 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    /**
+    * Process Input from submitted form
+    */
+   protected function ___processInput(Inputfield $form, $level = 0){
+      static $onlyFields = array(
+         'templates_with_workflow'
+         );
+
+      if(!$level) $form->processInput($this->input->post);
+
+      $languages = $this->languages;
+
+      foreach($form as $inputfield){
+         $name = $inputfield->attr('name');
+         if(!in_array($name, $onlyFields)) continue;
+
+         if($name && $inputfield->isChanged()){
+            $this->page->set($name, $inputfield->value);
+         }
+
+         if($inputfield instanceof InputfieldWrapper && count($inputfield->getChildren())) $this->processInput($inputfield, $level + 1); 
+      }
+   }
+
+   /**
     * Perform an after save redirect
     */
    protected function ___processSaveRedirect($redirectUrl){
       if(!$redirectUrl) $redirectUrl = './?s=1';
       $this->redirectUrl = $redirectUrl;
       $this->session->redirect($redirectUrl);
+   }
+
+   /**
+    * Build form
+    */
+   protected function ___buildForm(InputfieldForm $form){
+      $modules = $this->modules;
+      
+      $form->attr('id', __CLASS__);
+
+      //build our tabs
+      $form->append($this->buildFormDashboard());
+      $form->append($this->buildFormNotificationSettings());
+      $form->append($this->buildFormStatusSettings());
+
+      $saveField = $modules->get('InputfieldSubmit');
+      $saveField->attr('name', 'submit_save');
+      $saveField->attr('id', 'submitSave');
+      $saveField->class .= ' head_button_clone';
+      $saveField->attr('value', $this->_('Save Settings'));
+      $form->append($saveField);
+
+      $hidden = $modules->get('InputfieldHidden');
+      $hidden->attr('name', 'isPost');
+      $hidden->attr('value', 'true');
+      $form->append($hidden);
+
+      return $form;
    }
 
    /**
@@ -173,7 +215,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function ___buildFormStatusSettings(){
       $languages = $this->languages;
       $language = $this->user->language; 
+      $page = $this->page;
       $modules = $this->modules;
+
+      $page->of(false);
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
@@ -182,7 +227,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('Status Settings');
       $field->attr('value', '<h4>Status Settings</h4>');
+      $wrapper->append($field);
 
+/*
       $fieldTemplates = $modules->get('InputfieldAsmSelect');
       $fieldTemplates->label = $this->_('Specify which templates should have publishing workflow');
       $fieldTemplates->attr('id', 'templatesWithWorkflow');
@@ -195,8 +242,20 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          if(!$label) $label = $template->label ? $template->label : $template->name;
          $fieldTemplates->addOption($template->id, $label);
       }
+*/
+      //$field = $page->template->fieldgroup->getField('templates_with_workflow');
+      $field = $page->fields->get('templates_with_workflow');
+      $fieldTemplates = $field->getInputfield($page);
+      if(!$fieldTemplates){
+         $this->error('Could not display Templates field');
+      } else {
+         
+         //$fieldTemplates->attr('value', $page->templates_with_workflow);
 
-      $wrapper->append($fieldTemplates);
+         $wrapper->append($fieldTemplates);
+      }
+
+      $page->of(true);
       return $wrapper;
    }
 
