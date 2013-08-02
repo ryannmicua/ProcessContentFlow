@@ -256,10 +256,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //delete our cf tree
       $adminRootId = $this->config->adminRootPageID;
-      $cfPage = $checkPage = $this->pages->get("template=admin,parent=$adminRootId,name=" . self::ROOT_PAGE_NAME);
+      $cfPage = $checkPage = $this->pages->get("parent=$adminRootId,name=" . self::ROOT_PAGE_NAME);
       if($cfPage->id){
          //delete cf page and all children permanently
-         $this->pages->delete($cfPage, true);
+         $cfPath = $cfPage->url;
+         if($this->pages->delete($cfPage, true)){
+            $this->message('Deleted Content Flow page and all children at: ' . $cfPath);
+         } else {
+            $this->error('Problem deleting Content Flow page and all children at: ' . $cfPath);
+         }
       }
 
       //remove our custom templates
@@ -396,6 +401,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
+   protected function ___setupRootTemplate(){
+      //add fields and stuff here.
+      
+   }
+
    private function _createFields(){
       //create 'templates with workflow' field
       if(!$this->fields->get('templates_with_workflow')){
@@ -451,10 +461,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   protected function ___setupRootTemplate(){
-
-   }
-
    private function _createCustomPages(){
       
       $templates = $this->templates;
@@ -464,11 +470,20 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $holderTemplate = $templates->get(self::HOLDER_TEMPLATE_NAME);
 
       //see if we still need to create our page
-      $checkPage = $this->pages->get('template=admin,name=' . self::ROOT_PAGE_NAME);
+      $checkPage = $this->pages->get('template=' . self::ROOT_TEMPLATE_NAME . ',name=' . self::ROOT_PAGE_NAME);
       if(!$checkPage->id){
          //create our base settings page under "admin"
+         /*
          $cfPage = new Page();
          $cfPage->template = $templates->get('admin');
+         $cfPage->parent = $pages->get($this->config->adminRootPageID);
+         $cfPage->title = 'Content Flow';
+         $cfPage->name = self::ROOT_PAGE_NAME;
+         $cfPage->process = $this;
+         $cfPage->save();
+         */
+         $cfPage = new Page();
+         $cfPage->template = $templates->get(self::ROOT_TEMPLATE_NAME);
          $cfPage->parent = $pages->get($this->config->adminRootPageID);
          $cfPage->title = 'Content Flow';
          $cfPage->name = self::ROOT_PAGE_NAME;
