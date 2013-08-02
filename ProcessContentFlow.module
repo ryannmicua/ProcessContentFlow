@@ -72,7 +72,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->form = $this->buildForm($this->form);
       $this->form->setTrackChanges();
 
-      if($this->isPost) $this->processSave();
+      if($this->isPost && count($_POST)) $this->processSave();
 
       return $this->renderUI();
    }
@@ -100,7 +100,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->setModuleData('templates_with_workflow', $post->templates_with_workflow);
       
       //$page->templates_with_workflow = $post->templates_with_workflow;
-      //$this->message(print_r($post->templates_with_workflow,true));
+      $this->message(print_r($post->templates_with_workflow,true));
       $this->processInput($this->form);
 
       if($page->save()){
@@ -126,8 +126,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       foreach($form as $inputfield){
          $name = $inputfield->attr('name');
+         if($name) $this->message('process ' . $name);
+
          if(!in_array($name, $onlyFields)) continue;
 
+         $this->message('processing ' . $name);
          if($name && $inputfield->isChanged()){
             $this->page->set($name, $inputfield->value);
          }
@@ -154,8 +157,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->attr('id', __CLASS__);
 
       //build our tabs
-      $form->append($this->buildFormDashboard());
-      $form->append($this->buildFormNotificationSettings());
+      //$form->append($this->buildFormDashboard());
+      //$form->append($this->buildFormNotificationSettings());
       $form->append($this->buildFormStatusSettings());
 
       $saveField = $modules->get('InputfieldSubmit');
@@ -218,7 +221,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $page = $this->page;
       $modules = $this->modules;
 
-      $page->of(false);
+   
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
@@ -255,7 +258,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $wrapper->append($fieldTemplates);
       }
 
-      $page->of(true);
       return $wrapper;
    }
 
