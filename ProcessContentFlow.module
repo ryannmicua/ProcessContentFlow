@@ -235,17 +235,19 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    public function ___install(){
 
       //create our custom templates
-      $this->_createCustomTemplates();
-
-      //create our custom admin pages
-      $this->_createCustomPages();
+      $this->createCustomTemplates();
 
       //create fields
-      $this->_createFields();
+      $this->createFields();
 
-      //add fields to template
-      $this->_addTemplateFields();
+      //add template fields
+      //$this->_addTemplateFields();
+      
+      //set up root template
+      $this->setupRootTemplate();
 
+      //create our custom admin pages
+      $this->createCustomPages();
    }
 
    public function ___uninstall(){
@@ -268,10 +270,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
 
       //remove our custom templates
-      $this->_deleteCustomTemplates();
+      $this->deleteCustomTemplates();
 
       //delete our fields
-      $this->_deleteFields();
+      $this->deleteFields();
 
    }
 
@@ -284,7 +286,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return $fields;
    }
 
-   private function _getDefaults($type=''){
+   protected function getStuff($type=''){
+      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
       $statuses = array(
          'pitch' => 'Pitch',
          'assigned' => 'Assigned',
@@ -293,21 +296,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          );
 
       switch($type){
+         case 'templates':
+            return $templates;
+
          case 'status':
          case 'statuses':
             return $statuses;
-
-         default:
-            return array();
-      }
-   }
-
-   private function _getStuff($type=''){
-      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
-
-      switch($type){
-         case 'templates':
-            return $templates;
 
          default:
             return array();
@@ -338,13 +332,13 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return $this->modules->saveModuleConfigData($this, $this->data);
    }
    
-   private function _createCustomTemplates(){
+   protected function createCustomTemplates(){
       $templatesToCreate = array( 
          self::HOLDER_TEMPLATE_NAME,
          self::ROOT_TEMPLATE_NAME
       );
 
-      foreach( $this->_getStuff('templates') as $tname ){
+      foreach( $this->getStuff('templates') as $tname ){
 
          $temp = $this->templates->get($tname);
          if(is_null($temp)){
@@ -373,8 +367,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   private function _deleteCustomTemplates(){
-      foreach($this->_getStuff('templates') as $tname){
+   protected function deleteCustomTemplates(){
+      foreach($this->getStuff('templates') as $tname){
          $temp = $this->templates->get($tname);
          if(!is_null($temp)){
             //try to delete our custom template
@@ -403,10 +397,26 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    protected function ___setupRootTemplate(){
       //add fields and stuff here.
+      $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
+      $baseTemplateFields = array('templates_with_workflow', 'process');
+      if(is_null($baseTemplate)){
+         $this->error('Error adding fields to base template (' . self::ROOT_TEMPLATE_NAME . ') because it does not exist.');
+      } else {
+         foreach($baseTemplateFields as $fieldName){
+            $baseTemplate->fields->add($fieldName);
+            if($baseTemplate->fields->save()){
+               $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
+            }  
+         }
+      }
+
+      //specify alternate template filename
+      $baseTemplate->altFilename = 'admin';
+      $baseTemplate->save();
       
    }
 
-   private function _createFields(){
+   protected function createFields(){
       //create 'templates with workflow' field
       if(!$this->fields->get('templates_with_workflow')){
          $field = new Field();
@@ -426,7 +436,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    }
 
-   private function _deleteFields(){
+   protected function deleteFields(){
       /** Assume that the templates the following fields are tied to are already deleted **/
       $fields = array('templates_with_workflow');
 
@@ -446,9 +456,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    }
 
-   private function _addTemplateFields(){
+   protected function addTemplateFields(){
       $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
-      $baseTemplateFields = array('templates_with_workflow');
+      $baseTemplateFields = array('templates_with_workflow', 'process');
       if(is_null($baseTemplate)){
          $this->error('Error adding fields to base template (' . self::ROOT_TEMPLATE_NAME . ') because it does not exist.');
       } else {
@@ -461,7 +471,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   private function _createCustomPages(){
+   protected function createCustomPages(){
       
       $templates = $this->templates;
       $pages = $this->pages;
@@ -473,15 +483,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $checkPage = $this->pages->get('template=' . self::ROOT_TEMPLATE_NAME . ',name=' . self::ROOT_PAGE_NAME);
       if(!$checkPage->id){
          //create our base settings page under "admin"
-         /*
-         $cfPage = new Page();
-         $cfPage->template = $templates->get('admin');
-         $cfPage->parent = $pages->get($this->config->adminRootPageID);
-         $cfPage->title = 'Content Flow';
-         $cfPage->name = self::ROOT_PAGE_NAME;
-         $cfPage->process = $this;
-         $cfPage->save();
-         */
          $cfPage = new Page();
          $cfPage->template = $templates->get(self::ROOT_TEMPLATE_NAME);
          $cfPage->parent = $pages->get($this->config->adminRootPageID);
@@ -508,8 +509,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $perm->save();
       }
 
-      //create our custom templates and fieldgroups
-      $checkStatuses = $pages->get("parent=$cfRootPage,name=contentflow-statuses");
+      //create status pages
+      $checkStatusRoot = $pages->get("parent=$cfRootPage,name=contentflow-statuses");
       if(!$checkStatuses->id){
          $pStatuses = new Page();
          $pStatuses->template = $holderTemplate;
@@ -520,12 +521,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
          $statusRoot = $pStatuses;
       } else {
-         $statusRoot = $checkStatuses;
+         $statusRoot = $checkStatusRoot;
       }
 
       //create our default statuses
       if(!$statusRoot->numChildren){
-         $defaultStatuses = $this->_getDefaults('status');
+         $defaultStatuses = $this->getStuff('status');
          foreach($defaultStatuses as $name => $title){
             $p = new Page();
             $p->parent = $statusRoot;
@@ -536,7 +537,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          }
       }
 
-      //save moduled data
+      //save module data
       $this->saveModuleData();
    }
 }
