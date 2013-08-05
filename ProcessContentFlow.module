@@ -315,9 +315,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       //create our custom templates
       $this->createCustomTemplates();
 
-      //add template fields
-      //$this->_addTemplateFields();
-      
       //create our custom admin pages
       $this->createCustomPages();
 
@@ -326,8 +323,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //set up root template
       $this->setupRootPageAndTemplate();
-
-      //set the 'process' field of the root page
       
    }
 
@@ -570,19 +565,31 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    }
 
-   protected function addTemplateFields(){
-      $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
-      $baseTemplateFields = array('templates_with_workflow', 'process');
-      if(is_null($baseTemplate)){
-         $this->error('Error adding fields to base template (' . self::ROOT_TEMPLATE_NAME . ') because it does not exist.');
-      } else {
-         foreach($baseTemplateFields as $fieldName){
-            $baseTemplate->fields->add($fieldName);
-            if($baseTemplate->fields->save()){
-               $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
-            }  
+   /**
+    * Add specified fields to specified templates
+    * @param array $templates    array of templates names i.e. array('admin', 'basic-page');
+    * @param array $fieldnames   array of field names i.e. array('title', 'body');
+    */
+   protected function addTemplateFields($templates = null, $fieldnames = null){
+      
+      if(empty($templates) || empty($fieldnames)){
+         $this->error('Error while calling ' . __CLASS__ . '::addTemplateFields(). Parameters must not be empty.');
+      }
+
+      foreach($templates as $tname){
+         $template = $this->templates->get($tname);
+         if(is_null($template)){
+            $this->error('Error adding fields to template (' . $tname . ') because it does not exist.');
+         } else {
+            foreach($fieldnames as $fieldName){
+               $template->fields->add($fieldName);
+               if($template->fields->save()){
+                  $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
+               } 
+            }
          }
       }
+
    }
 
    protected function createCustomPages(){
