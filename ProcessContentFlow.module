@@ -83,6 +83,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return $this->renderUI();
    }
 
+   public function ___executeTry(){
+      $form = $this->modules->get('InputfieldForm');
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('My Markup');
+      $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
+      $form->append($field);
+      return $form->render(); 
+   }
+
    /**
     * Render our pages
     */
@@ -316,8 +325,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->createFields();
 
       //set up root template
-      $this->setupRootTemplate();
+      $this->setupRootPageAndTemplate();
 
+      //set the 'process' field of the root page
+      
    }
 
    public function ___uninstall(){
@@ -464,8 +475,17 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   protected function ___setupRootTemplate(){
-      //add fields and stuff here.
+   protected function ___setupRootPageAndTemplate(){
+
+      $basePage = $this->pages->get($this->root_page_id);
+
+      //set 'process' field
+      $basePage->process = $this;
+
+      //set 'templates_with_workflow' field to empty array to avoid error
+      $basePage->templates_with_workflow = array();
+
+      //add template fields and stuff here.
       $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
       $baseTemplateFields = array('templates_with_workflow', 'process');
       if(is_null($baseTemplate)){
@@ -481,8 +501,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //specify alternate template filename
       $baseTemplate->altFilename = 'admin';
+
+      //save
+      $basePage->save();
       $baseTemplate->save();
-      
+
    }
 
    protected function createFields(){
@@ -576,7 +599,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $cfPage->parent = $pages->get($this->config->adminRootPageID);
          $cfPage->title = 'Content Flow';
          $cfPage->name = self::ROOT_PAGE_NAME;
-         $cfPage->process = $this;
          $cfPage->save();
 
          $cfRootPage = $cfPage;

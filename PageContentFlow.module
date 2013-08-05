@@ -58,7 +58,7 @@ class PageContentFlow extends WireData implements Module{
       if($this->isPost) return;
 
       //check if this page should have a workflow tab 
-      if(($this->cfRootPage->templates_with_workflow)){
+      if(count($this->cfRootPage->templates_with_workflow)){
          foreach($this->cfRootPage->templates_with_workflow as $temp){
             if($temp->id == $this->page->template->id){
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm'); 
