@@ -85,7 +85,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    public function ___executeTry(){
       $form = $this->modules->get('InputfieldForm');
-      $field = $modules->get('InputfieldMarkup');
+      $field = $this->modules->get('InputfieldMarkup');
       $field->label = $this->_('My Markup');
       $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
       $form->append($field);
@@ -501,6 +501,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //specify alternate template filename
       $baseTemplate->altFilename = 'admin';
+
+      //allow url segments
+      $baseTemplate->urlSegments = 1;
 
       //save
       $basePage->save();
