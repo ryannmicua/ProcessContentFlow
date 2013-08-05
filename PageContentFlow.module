@@ -2,6 +2,14 @@
 
 class PageContentFlow extends WireData implements Module{
 
+   protected $id;
+   protected $page;
+   protected $user;
+   protected $isPost = false;
+   protected $cfRootPage;
+   protected $cfMainModule;
+   protected $stop = false;
+
    public static function getModuleInfo() {
       return array(
          'title' => 'Content Flow Tab', 
@@ -13,10 +21,53 @@ class PageContentFlow extends WireData implements Module{
       );
    }
 
+
    public function init(){
-      $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+      if(isset($_POST['id'])) $this->id = (int) $_POST['id']; 
+         else if(isset($_GET['id'])) $this->id = (int) $_GET['id']; 
+
+      if(!$this->id){
+         $this->stop = true;
+         return;
+      }
+
+      $this->user = $this->user;
+      $this->page = $this->pages->get($this->id);
+      if($this->page instanceof NullPage){ $this->stop = true; return; }
+
+      // determine if we're going to be dealing with a save/post request
+      $this->isPost = ($this->input->post->id > 0 && (((int) $this->input->post->id) === $this->page->id)) || $this->config->ajax && (count($_POST) || isset($_SERVER['HTTP_X_FIELDNAME'])); 
+   
    }
 
+   public function ready(){
+
+      if($this->stop) return;
+
+      $this->cfMainModule = $this->modules->get('ProcessContentFlow');
+
+      $this->cfRootPage = $this->pages->get($this->cfMainModule->root_page_id);
+
+      if($this->cfRootPage instanceOf NullPage){
+         $this->error('Could not load Content Flow base page.');
+         $this->stop = true;
+         return;
+      }
+
+      //don't run code below if we have a post request
+      if($this->isPost) return;
+
+      //check if this page should have a workflow tab 
+      if(($this->cfRootPage->templates_with_workflow)){
+         foreach($this->cfRootPage->templates_with_workflow as $temp){
+            if($temp->id == $this->page->template->id){
+               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm'); 
+               break;
+            }
+         }
+      }
+      
+   }
 
    protected function ___buildFormWorkFlowTab(){
       $modules = $this->modules;
@@ -39,7 +90,7 @@ class PageContentFlow extends WireData implements Module{
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('Workflow here');
-      $field->attr('value', '<h4>This will be where workflow settings will go</h4>');
+      $field->attr('value', '<h4>This will be where workflow settings will go</h4>'.$this->page->name);
 
       $wrapper->append($field);
       return $wrapper;

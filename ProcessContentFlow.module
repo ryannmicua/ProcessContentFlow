@@ -49,6 +49,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Attach our hooks here
     */
    public function init(){
+
+      if($this->page->id != $this->root_page_id) return;
+
       $this->page->setOutputFormatting(false); 
 
       //determine if we're going to be dealing with a save/post request
@@ -420,7 +423,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $temp = new Template();
             $temp->name = $tname;
             $temp->fieldgroup = $fg;
-            $temp->flags = 1;
             $temp->noGlobal = 1;
             $temp->nameContentTab = 1;
             $temp->flags = $this->template->flags | Template::flagSystem;
