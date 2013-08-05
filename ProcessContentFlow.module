@@ -135,7 +135,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       foreach($form as $inputfield){
          $name = $inputfield->attr('name');
 
-         if(in_array($name, $onlyFields)) continue;
+         if(in_array($name, $skipFields)) continue;
 
          if($name && $inputfield->isChanged()){
             $this->page->set($name, $inputfield->value);
