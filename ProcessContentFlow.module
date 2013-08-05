@@ -306,17 +306,18 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       //create our custom templates
       $this->createCustomTemplates();
 
-      //create fields
-      $this->createFields();
-
       //add template fields
       //$this->_addTemplateFields();
       
+      //create our custom admin pages
+      $this->createCustomPages();
+
+      //create fields
+      $this->createFields();
+
       //set up root template
       $this->setupRootTemplate();
 
-      //create our custom admin pages
-      $this->createCustomPages();
    }
 
    public function ___uninstall(){
@@ -502,11 +503,30 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       }
 
+      //create 'cf_status' field
+      if(!$this->fields->get('cf_status')){
+         $field = new Field();
+         $field->name = 'cf_status';
+         $field->label = 'Publishing Status';
+         $field->description = '';
+         $field->labelFieldName = 'title';
+         $field->type = wire('modules')->get('FieldtypePage');
+         $field->inputfield = 'InputfieldSelect';
+         $field->derefAsPage = FieldtypePage::derefAsPageOrFalse;
+         $field->parent_id = $this->status_root_page_id;
+         $field->flags = $this->field->flags | Field::flagSystem;
+         if($field->save()){
+            $this->message('Created system field: ' . $field->name);
+         } else {
+            $this->error('Problem creating system field: ' . $field->name);
+         }
+      }
+
    }
 
    protected function deleteFields(){
       /** Assume that the templates the following fields are tied to are already deleted **/
-      $fields = array('templates_with_workflow');
+      $fields = array('templates_with_workflow', 'cf_status');
 
       foreach($fields as $fname){
          $field = null;
@@ -591,6 +611,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       } else {
          $statusRoot = $checkStatusRoot;
       }
+      $this->setModuleData('status_root_page_id', $statusRoot->id);
 
       //create our default statuses
       if(!$statusRoot->numChildren){
