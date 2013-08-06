@@ -92,6 +92,43 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return $form->render(); 
    }
 
+   public function ___executeWorkflowTemplates(){
+      
+      //TODO: make sure user has permission to update templates
+      
+      if(!isset($_GET['templates'])) throw new WireException("This method requires a 'templates' GET var");
+
+      $templatesGet = explode(',', $_GET['templates']);
+
+      $templates = array();
+      //build array of templates
+      foreach($templatesGet as $templateId){
+         $template = $this->templates->get((int) $templateId);
+         if(!$template) throw new WireException("Unknown template ID: $templateId");
+         $templates[] = $template;
+      }
+
+      $form = $this->modules->get('InputfieldForm');
+      $form->attr('action', 'saveWorkflowTemplates');
+      $form->attr('method', 'post');
+      $form->description = $this->_('Update templates that will have workflow');
+
+      $field = $this->modules->get('InputfieldMarkup');
+      $field->label = $this->_('Confirm adding of workflow to the following templates');
+      $list = '';
+      foreach($templates as $t){
+         $list .= '<li class="ui-state-highlight"><span class="ui-icon ui-icon-alert"></span> ' . $t->
+      }
+
+      $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
+      $form->append($field);
+      return $form->render(); 
+   }
+
+   public function ___executeSaveTemplate($templates = null){
+      //TODO: make sure user has permission
+   }
+
    /**
     * Render our pages
     */
@@ -171,11 +208,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    protected function processInputTemplatesWithWorkflow(Inputfield $inputfield){
-      if(!$inputfield->value || !is_array($inputfield->value)) return true;
 
-      $templates = $inputfield->value;
+      if(!$inputfield->value || !is_array($inputfield->value)){
+         return true;
+      }
 
-
+      if($inputfield->isChanged()){
+         $this->redirectUrl = 'workflowtemplates?templates=' . implode(',', $inputfield->value); 
+      }
+      
    }
 
    /**
@@ -410,6 +451,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * HELPER FUNCTIONS
     */
    
+
    /**
     * Set module data on $this->data but won't actually save module data. To save,
     * call $this->saveModuleData()
@@ -429,6 +471,53 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function saveModuleData(){
       return $this->modules->saveModuleConfigData($this, $this->data);
    }
+
+   /**
+    * Return a label for a given template
+    * @param  Template $template template object
+    * @return String             nice label of the template
+    */
+   protected function getTemplateLabel(Template $template) {
+      $label = '';
+      $user = wire('user'); 
+      $language = wire('languages') && $user->language->id && !$user->language->isDefault ? wire('user')->language : null;
+      if($language) $label = $template->get('label' . $language->id);
+      if(!$label) $label = $template->label ? $template->label : $template->name; 
+      return $label;
+   }
+
+
+   /**
+    * Add specified fields to specified templates
+    * @param array $templates    array of templates names i.e. array('admin', 'basic-page');
+    * @param array $fieldnames   array of field names i.e. array('title', 'body');
+    */
+   protected function addTemplateFields($templates = null, $fieldnames = null){
+      
+      if(empty($templates) || empty($fieldnames)){
+         $this->error('Error while calling ' . __CLASS__ . '::addTemplateFields(). Parameters must not be empty.');
+      }
+
+      foreach($templates as $tname){
+         $template = $this->templates->get($tname);
+         if(is_null($template)){
+            $this->error('Error adding fields to template (' . $tname . ') because it does not exist.');
+         } else {
+            foreach($fieldnames as $fieldName){
+               $template->fields->add($fieldName);
+               if($template->fields->save()){
+                  $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
+               } 
+            }
+         }
+      }
+
+   }
+
+
+   /**
+    * INSTALL/UNINSTALL HELPER FUNCTIONS
+    */
    
    protected function createCustomTemplates(){
       $templatesToCreate = array( 
@@ -590,33 +679,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
                $this->message('Removed field: ' . $fname);
             } else {
                $this->error('Problem removing field: ' . $fname);
-            }
-         }
-      }
-
-   }
-
-   /**
-    * Add specified fields to specified templates
-    * @param array $templates    array of templates names i.e. array('admin', 'basic-page');
-    * @param array $fieldnames   array of field names i.e. array('title', 'body');
-    */
-   protected function addTemplateFields($templates = null, $fieldnames = null){
-      
-      if(empty($templates) || empty($fieldnames)){
-         $this->error('Error while calling ' . __CLASS__ . '::addTemplateFields(). Parameters must not be empty.');
-      }
-
-      foreach($templates as $tname){
-         $template = $this->templates->get($tname);
-         if(is_null($template)){
-            $this->error('Error adding fields to template (' . $tname . ') because it does not exist.');
-         } else {
-            foreach($fieldnames as $fieldName){
-               $template->fields->add($fieldName);
-               if($template->fields->save()){
-                  $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
-               } 
             }
          }
       }
