@@ -104,13 +104,25 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(!isset($_GET['templates'])) throw new WireException("This method requires a 'templates' GET var");
 
       $templatesGet = explode(',', $_GET['templates']);
+      $templatesCurrent = count($this->page->templates_with_workflow) ? $this->page->templates_with_workflow : array();
 
-      $templates = array();
-      //build array of templates
+      $templatesAdd = array();
+      //build array of templates where workflow will be added to
       foreach($templatesGet as $templateId){
+         if(in_array($templateId, $templatesCurrent)) continue;
          $template = $this->templates->get((int) $templateId);
          if(!$template) throw new WireException("Unknown template ID: $templateId");
-         $templates[] = $template;
+         $templatesAdd[] = $template;
+      }
+
+      //build array of templates where workflow will be removed from
+      $templatesRemove = array();
+      //build array of templates where workflow will be added to
+      foreach($templatesCurrent as $templateId){
+         if(in_array($templateId, $templatesGet)) continue;
+         $template = $this->templates->get((int) $templateId);
+         if(!$template) throw new WireException("Unknown template ID: $templateId");
+         $templatesRemove[] = $template;
       }
 
       $form = $this->modules->get('InputfieldForm');
@@ -118,20 +130,123 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->attr('method', 'post');
       $form->description = $this->_('Update templates that will have workflow');
 
-      $field = $this->modules->get('InputfieldMarkup');
-      $field->label = $this->_('Confirm adding of workflow to the following templates');
-      $list = '';
-      foreach($templates as $t){
-         $list .= '<li class="ui-state-highlight"><span class="ui-icon ui-icon-alert"></span> ' . $t->
+      if(!empty($templatesAdd)){
+         //display templates where workflow will be added
+         $field = $this->modules->get('InputfieldMarkup');
+         $field->label = $this->_('Confirm adding workflow to these templates');
+         $field->description = $this->_('A workflow tab and related fields will be added to the following templates');
+         $list = '';
+         foreach($templatesAdd as $t){
+            $list .= '<li class="ui-state-highlight"><span class="ui-icon ui-icon-alert"></span> ' . $this->getTemplateLabel($t) . '</li>';
+         }
+         $list = '<ul>'.$list.'</ul>';
+         $fieldVal = $list.'<p>'.$this->_('The following fields will be added to these templates.').'</p><ul>';
+         foreach(self::$workflowFields as $fname){
+            $fieldVal .= '<li>'.$fname.'</li>';
+         }
+         $fieldVal .= '</ul>';
+         $field->attr('value', $fieldVal);
+         $form->append($field);
       }
 
-      $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
-      $form->append($field);
+      if(!empty($templatesRemove)){
+         //display templates where workflow will be removed
+         $field = $this->modules->get('InputfieldMarkup');
+         $field->label = $this->_('Confirm removal of workflow from these templates');
+         $field->description = $this->_("Warning, removal of workflow from these templates will also remove all associated workflow data and fields. And yes, you cannot get these data back.");
+         $list = '';
+         foreach($templatesRemove as $t){
+            $list .= '<li class="ui-state-highlight"><span class="ui-icon ui-icon-alert"></span> ' . $this->getTemplateLabel($t) . '</li>';
+         }
+         $list = '<ul>'.$list.'</ul>';
+         $fieldVal = $list.'<p>'.$this->_('The following fields will be deleted from these templates.').'</p><ul>';
+         foreach(self::$workflowFields as $fname){
+            $fieldVal .= '<li>'.$fname.'</li>';
+         }
+         $fieldVal .= '</ul>';
+         $field->attr('value', $fieldVal);
+         $form->append($field);
+      }
+
+      $f = $this->modules->get("InputfieldCheckbox"); 
+      $f->attr('name', 'changeConfirm'); 
+      $f->attr('value', 'confirm'); 
+      $f->label = $this->_('Are you sure?'); // Checkbox label to confirm they want to apply the changes
+      $f->description = $this->_('Please confirm that you understand the above by clicking the checkbox below.'); // Checkbox description to confirm they want to apply the changes
+      $form->append($f); 
+
+      $f = $this->modules->get('InputfieldHidden');
+      $f->attr('name', 'templates'); 
+      $f->attr('value', implode(',',$templatesGet)); //$templatesGet is array of template IDs.
+      $form->append($f); 
+
+      $f = $this->modules->get("InputfieldSubmit");
+      $form->append($f);
+
+      $this->breadcrumbs->add(new Breadcrumb($this->page->url, $this->page->get('title|name')));
+
       return $form->render(); 
    }
 
-   public function ___executeSaveTemplate($templates = null){
+   /**
+    * Save templates with workflow
+    * @param  array $templates array of template IDs
+    */
+   public function ___executeSaveWorkflowTemplates($templates = null){
       //TODO: make sure user has permission
+      
+      $this->redirectUrl = $this->page->url;
+      
+      if(isset($_POST['confirmChange']) && $_POST['confirmChange'] != 'confirm') $this->processSaveRedirect($this->redirectUrl);
+
+      if(isset($_POST['templates'])){
+         $templates = explode(',', $_POST['templates']);
+      }
+
+      if(!is_array($templates)) throw new WireException("This method requires correct 'templates' var");
+
+      if(empty($templates)) throw new WireException("'templates' var empty");
+
+      //current templates with workflow
+      $templatesCurrent = count($this->page->templates_with_workflow) ? $this->page->templates_with_workflow : array();
+
+      //build array of templates where workflow will be added to
+      $templatesAdd = array();
+      //loop through array of templates that must have workflow (includes templates that ALREADY have workflow)
+      foreach($templates as $templateId){
+
+         //do not include templates that already have workflow
+         if(in_array($templateId, $templatesCurrent)) continue;
+
+         $template = $this->templates->get((int) $templateId);
+         if(!$template) throw new WireException("Unknown template ID: $templateId");
+         $templatesAdd[] = $template;
+      }
+
+      //build array of templates that we should remove workflow from
+      $templatesRemove = array();
+      //loop through array of current templates that ALREADY has workflow
+      foreach($templatesCurrent as $templateId){
+
+         //do not includes templates that should have workflow
+         if(in_array($templateId, $templates)) continue;
+
+         $template = $this->templates->get((int) $templateId);
+         if(!$template) throw new WireException("Unknown template ID: $templateId");
+         $templatesremove[] = $template;
+      }
+
+      $this->session->CSRF->validate();
+
+      if(!empty($templatesAdd)||!empty($templatesRemove)){
+         try{
+            $this->addTemplateFields($templatesAdd, self::$workflowFields);
+         }catch(Exception $e){
+            $this->error($e->getMessage());
+         }
+      }
+      
+      $this->session->redirect($this->page->url);
    }
 
    /**
