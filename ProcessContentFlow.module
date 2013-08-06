@@ -147,13 +147,26 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          if(in_array($name, $skipFields)) continue;
 
          if($name && $inputfield->isChanged()){
-            $this->page->set($name, $inputfield->value);
+            if($languages && $inputfield->useLanguages){
+               $v = $this->page->get($name);
+               if(is_object($v)){
+                  $v->setFromInputfield($inputfield);
+                  $this->page->set($name, $v);
+                  $this->page->trackChange($name);
+               }
+            } else {
+               $this->page->set($name, $inputfield->value);
+            }
          }
 
          if($inputfield instanceof InputfieldWrapper && count($inputfield->getChildren())){
             $this->processInput($inputfield, $level + 1); 
          }
       }
+   }
+
+   protected function processInputTemplatesWithWorkflow(){
+      
    }
 
    /**
