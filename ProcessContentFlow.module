@@ -20,6 +20,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected static $defaults = array(
       );
 
+   /* fields that will be added to templates that have workflow enabled */
+   protected static $workflowFields = array(
+      'cf_status'
+      );
+
    const PERMISSION_NAME = 'contentflow-access';
    const ROOT_PAGE_NAME = 'contentflow';
    const ROOT_TEMPLATE_NAME = 'contentflow';
