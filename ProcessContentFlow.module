@@ -494,7 +494,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    /**
     * Add specified fields to specified templates
-    * @param array $templates    array of templates names i.e. array('admin', 'basic-page');
+    * @param array $templates    array of templates names/template id/Template objects
     * @param array $fieldnames   array of field names i.e. array('title', 'body');
     */
    protected function addTemplateFields($templates = null, $fieldnames = null){
@@ -504,14 +504,18 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
 
       foreach($templates as $tname){
-         $template = $this->templates->get($tname);
+         if($tname instanceof Template)
+            $template = $tname;
+         else
+            $template = $this->templates->get($tname);
+
          if(is_null($template)){
             $this->error('Error adding fields to template (' . $tname . ') because it does not exist.');
          } else {
             foreach($fieldnames as $fieldName){
                $template->fields->add($fieldName);
                if($template->fields->save()){
-                  $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
+                  $this->message('Added field ' . $fieldName . ' to template ' . $template->name);
                } 
             }
          }
