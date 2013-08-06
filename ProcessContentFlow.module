@@ -538,6 +538,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->labelFieldName = 'label';
          $field->type = wire('modules')->get('FieldtypeTemplates');
          $field->flags = $this->field->flags | Field::flagSystem;
+
+         //set initial template types available
+         $templateTypes = array();
+         foreach($this->templates as $template){
+            if($template->flags & Template::flagSystem) continue;
+            $templateTypes[] = $template->id;
+         }
+         $field->templateTypes = $templateTypes;
+
          if($field->save()){
             $this->message('Created system field: ' . $field->name);
          } else {
