@@ -169,7 +169,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
 
       $f = $this->modules->get("InputfieldCheckbox"); 
-      $f->attr('name', 'changeConfirm'); 
+      $f->attr('name', 'confirmChange'); 
       $f->attr('value', 'confirm'); 
       $f->label = $this->_('Are you sure?'); // Checkbox label to confirm they want to apply the changes
       $f->description = $this->_('Please confirm that you understand the above by clicking the checkbox below.'); // Checkbox description to confirm they want to apply the changes
@@ -200,7 +200,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(isset($_POST['confirmChange']) && $_POST['confirmChange'] != 'confirm') $this->processSaveRedirect($this->redirectUrl);
 
       if(isset($_POST['templates'])){
-         $templates = explode(',', $_POST['templates']);
+         $temp = array();
+         $temp = explode(',', $_POST['templates']);
+
+         foreach($temp as $t){
+            $templates[] = intval($t);
+         }
       }
 
       if(!is_array($templates)) throw new WireException("This method requires correct 'templates' var");
@@ -233,19 +238,32 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
          $template = $this->templates->get((int) $templateId);
          if(!$template) throw new WireException("Unknown template ID: $templateId");
-         $templatesremove[] = $template;
+         $templatesRemove[] = $template;
       }
 
-      $this->session->CSRF->validate();
+      //$this->session->CSRF->validate();
 
-      if(!empty($templatesAdd)||!empty($templatesRemove)){
+      if(!empty($templatesAdd)){
          try{
             $this->addTemplateFields($templatesAdd, self::$workflowFields);
          }catch(Exception $e){
             $this->error($e->getMessage());
          }
       }
-      
+
+      if(!empty($templatesRemove)){
+         try{
+            $this->removeTemplateFields($templatesRemove, self::$workflowFields);
+         }catch(Exception $e){
+            $this->error($e->getMessage());
+         }
+      }
+
+      $languages = $this->languages;
+
+      $this->page->set('templates_with_workflow', $templates);
+      $this->page->save();
+
       $this->session->redirect($this->page->url);
    }
 
@@ -291,6 +309,13 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          'submit_save',
          'isPost'
          );
+
+      //!!HACK!! add array to templates_with_workflow if it's empty
+      /*$templates_with_workflow = $this->input->post->templates_with_workflow;
+      $postData = $this->input->post;
+      if(empty($templates_with_workflow)){
+         $postData->__set('templates_with_workflow', array());
+      }*/
 
       if(!$level){
          $form->processInput($this->input->post);
@@ -427,7 +452,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('Status Settings');
-      $field->attr('value', '<h4>Status Settings</h4>');
+      $field->attr('value', '<h4>Status Settings</h4>'.print_r($this->page->templates_with_workflow,true).'text');
       $wrapper->append($field);
 
 /*
@@ -472,7 +497,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $field = $modules->get('InputfieldSelect');
       $field->label = $this->_('Use workflow stages');
-      $field->attr('value', '<h4>Status Settings</h4>');
+      $field->attr('value', '<h4>Status Settings</h4>'.print_r($this->page->templates_with_workflow,true).'text');
 
       $wrapper->append($field);
       return $wrapper;
@@ -662,7 +687,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * @param array $fieldNames   array of field names i.e. array('title', 'body');
     */
    protected function removeTemplateFields($templates = null, $fieldNames = null){
-      
       if(empty($templates) || empty($fieldNames)){
          $this->error(sprintf($this->_('Error while calling %1$s::removeTemplateFields(). Parameters must not be empty.'), __CLASS__));
       }
