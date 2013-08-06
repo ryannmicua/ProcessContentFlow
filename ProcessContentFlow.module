@@ -632,9 +632,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             foreach($fieldNames as $fieldName){
 
                if(!$field = $this->fields->get($fieldName)) continue;
+
                if(!$template->fields->has($field)){
                   $template->fields->add($field);
                   $this->fieldAdded($field,$template);
+                  
                } else {
                   $field = $template->fields->getField($field->id, true); //get in context
                   $template->fields->add($field);
@@ -645,6 +647,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
                   $this->message(sprintf($this->_('Added field "%1$s" to template "%2$s"'), $fieldName, $template->name));
                } 
                */
+               
+               $template->fields->save();
             }
          }
       }
@@ -660,7 +664,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function removeTemplateFields($templates = null, $fieldNames = null){
       
       if(empty($templates) || empty($fieldNames)){
-         $this->error(sprintf($this->_('Error while calling %1$s::addTemplateFields(). Parameters must not be empty.'), __CLASS__));
+         $this->error(sprintf($this->_('Error while calling %1$s::removeTemplateFields(). Parameters must not be empty.'), __CLASS__));
       }
 
       //$this->session->CSRF->validate();
@@ -688,6 +692,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
                } 
             }
             */
+            $template->fields->save();
          }
       }
 
