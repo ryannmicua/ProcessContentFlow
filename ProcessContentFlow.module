@@ -146,6 +146,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
          if(in_array($name, $skipFields)) continue;
 
+         if($name == 'templates_with_workflow'){
+            $this->processInputTemplatesWithWorkflow($inputfield);
+            continue;
+         }
+
          if($name && $inputfield->isChanged()){
             if($languages && $inputfield->useLanguages){
                $v = $this->page->get($name);
@@ -165,8 +170,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   protected function processInputTemplatesWithWorkflow(){
-      
+   protected function processInputTemplatesWithWorkflow(Inputfield $inputfield){
+      if(!$inputfield->value || !is_array($inputfield->value)) return true;
+
+      $templates = $inputfield->value;
+
+
    }
 
    /**
