@@ -495,13 +495,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    /**
     * Add specified fields to specified templates
     * @param array $templates    array of templates names/template id/Template objects
-    * @param array $fieldnames   array of field names i.e. array('title', 'body');
+    * @param array $fieldNames   array of field names i.e. array('title', 'body');
     */
-   protected function addTemplateFields($templates = null, $fieldnames = null){
+   protected function addTemplateFields($templates = null, $fieldNames = null){
       
-      if(empty($templates) || empty($fieldnames)){
-         $this->error('Error while calling ' . __CLASS__ . '::addTemplateFields(). Parameters must not be empty.');
+      if(empty($templates) || empty($fieldNames)){
+         $this->error(sprintf($this->_('Error while calling %1$s::addTemplateFields(). Parameters must not be empty.'), __CLASS__));
       }
+
+      //$this->session->CSRF->validate();
 
       foreach($templates as $tname){
          if($tname instanceof Template)
@@ -510,19 +512,87 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $template = $this->templates->get($tname);
 
          if(is_null($template)){
-            $this->error('Error adding fields to template (' . $tname . ') because it does not exist.');
+            $this->error(sprintf($this->_('Error adding fields to template "%1$s" because template does not exist.'), $tname));
          } else {
-            foreach($fieldnames as $fieldName){
+            foreach($fieldNames as $fieldName){
+
+               if(!$field = $this->fields->get($fieldName)) continue;
+               if(!$template->fields->has($field)){
+                  $template->fields->add($field);
+                  $this->fieldAdded($field,$template);
+               } else {
+                  $field = $template->fields->getField($field->id, true); //get in context
+                  $template->fields->add($field);
+               }
+               /*
                $template->fields->add($fieldName);
                if($template->fields->save()){
-                  $this->message('Added field ' . $fieldName . ' to template ' . $template->name);
+                  $this->message(sprintf($this->_('Added field "%1$s" to template "%2$s"'), $fieldName, $template->name));
                } 
+               */
             }
          }
       }
 
    }
 
+
+   /**
+    * Remove specified fields to specified templates
+    * @param array $templates    array of templates names/template id/Template objects
+    * @param array $fieldNames   array of field names i.e. array('title', 'body');
+    */
+   protected function removeTemplateFields($templates = null, $fieldNames = null){
+      
+      if(empty($templates) || empty($fieldNames)){
+         $this->error(sprintf($this->_('Error while calling %1$s::addTemplateFields(). Parameters must not be empty.'), __CLASS__));
+      }
+
+      //$this->session->CSRF->validate();
+
+      foreach($templates as $tname){
+         if($tname instanceof Template)
+            $template = $tname;
+         else
+            $template = $this->templates->get($tname);
+
+         if(is_null($template)){
+            $this->error(sprintf($this->_('Error removing fields from template "%1$s" because template does not exist.'), $tname));
+         } else {
+            foreach($template->fields as $field){
+               if(in_array($field->name, $fieldNames)){
+                  $template->fields->remove($field);
+                  $this->fieldRemoved($field, $template);
+               }
+            }
+            /*
+            foreach($fieldNames as $fieldName){
+               $template->fields->add($fieldName);
+               if($template->fields->save()){
+                  $this->message(sprintf($this->_('Removed field "%1$s" to template "%2$s"'), $fieldName, $template->name));
+               } 
+            }
+            */
+         }
+      }
+
+   }
+
+   /**
+    * For hooks to listen to when a field is removed from a template
+    *
+    */
+   public function ___fieldRemoved(Field $field, Template $template) { 
+      $this->message(sprintf($this->_('Removed field "%1$s" from template/fieldgroup "%2$s"'), $field, $template)); 
+   }
+
+   /**
+    * For hooks to listen to when a field is added to a template
+    *
+    */
+   public function ___fieldAdded(Field $field, Template $template) { 
+      $this->message(sprintf($this->_('Added field "%1$s" to template/fieldgroup "%2$s"'), $field, $template)); 
+   }
 
    /**
     * INSTALL/UNINSTALL HELPER FUNCTIONS
