@@ -61,8 +61,8 @@ class PageContentFlow extends WireData implements Module{
       if(count($this->cfRootPage->templates_with_workflow)){
          foreach($this->cfRootPage->templates_with_workflow as $temp){
             if($temp->id == $this->page->template->id){
-               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
+               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
                break;
             }
          }
@@ -72,28 +72,23 @@ class PageContentFlow extends WireData implements Module{
 
    protected function ___buildFormWorkFlowTab(){
       $modules = $this->modules;
+      $page = $this->page;
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'WorkFlow');
       $wrapper->attr('title', $this->_('Publishing Workflow'));
 
-      $statusField = $modules->get('InputfieldSelect');
-      $statusField->label = $this->_('Status');
-      $statusField->attr('id+name', 'cfstatus');
-      $statusField->attr('value', $this->page->cfstatus);
-      //$statusField->required = true;
-      
-      $statuses = array('Pitch', 'Assigned', 'In Progress', 'Draft', 'Pending Review');
-      foreach($statuses as $status){
-         $statusField->addOption($status,$status);
+      //add cf_status field
+      $field = $page->template->fields->getField('cf_status');
+      $inputfield = $field->getInputfield($page);
+      if(!$inputfield){
+         $this->error('Could not display Workflow Status field');
+      } else {
+         
+         $inputfield->value = $page->get($field->name);
+         $wrapper->append($inputfield);
       }
-      $wrapper->append($statusField);
 
-      $field = $modules->get('InputfieldMarkup');
-      $field->label = $this->_('Workflow here');
-      $field->attr('value', '<h4>This will be where workflow settings will go</h4>'.$this->page->name);
-
-      $wrapper->append($field);
       return $wrapper;
    }
 
@@ -147,6 +142,8 @@ class PageContentFlow extends WireData implements Module{
       foreach($fieldsToFilter as $f){
          $f->parent->remove($f);
       }
+
+      $event->return = $form;
 
    }
 
