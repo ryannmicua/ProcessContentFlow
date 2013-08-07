@@ -897,8 +897,22 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    protected function deleteFields(){
-      /** Assume that the templates the following fields are tied to are already deleted **/
-      $fields = array('templates_with_workflow', 'cf_status');
+
+      //remove workflow fields from templates (if any)
+      $fieldNames = $this->getWorkflowFields();
+      $templates = $this->templates;
+      foreach($templates as $template){
+         foreach($template->fields as $field){
+            if(in_array($field->name, $fieldNames)){
+               $template->fields->remove($field);
+               $template->fields->save();
+               $this->fieldRemoved($field,$template);
+            }
+         }
+      }
+
+      //now remove all contentflow fields including workflow fields
+      $fields = array_merge($fieldNames, array('templates_with_workflow'));
 
       foreach($fields as $fname){
          $field = null;
@@ -907,13 +921,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $field->flags = Field::flagSystemOverride;
             $field->flags = 0;
             if($this->fields->delete($field)){
-               $this->message('Removed field: ' . $fname);
+               $this->message('Deleted field: ' . $fname);
             } else {
-               $this->error('Problem removing field: ' . $fname);
+               $this->error('Problem deleting field: ' . $fname);
             }
          }
       }
-
    }
 
    protected function createCustomPages(){
