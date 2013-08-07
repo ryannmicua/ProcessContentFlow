@@ -61,7 +61,8 @@ class PageContentFlow extends WireData implements Module{
       if(count($this->cfRootPage->templates_with_workflow)){
          foreach($this->cfRootPage->templates_with_workflow as $temp){
             if($temp->id == $this->page->template->id){
-               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm'); 
+               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
                break;
             }
          }
@@ -121,6 +122,31 @@ class PageContentFlow extends WireData implements Module{
       $field->attr('value', 'Previewer'); 
 
       $event->return = $form->append($field); 
+
+   }
+
+
+   /**
+    * Removes workflow fields from being returned when a page calls getInputfields() as in 
+    * ProcessPageEdit::buildForm() because we don't want workflow fields to show up the normal
+    * place. We want to show workflow fields under the 'Workflow' tab
+    *
+    * NOTE: If this hook is being run then it means that the current page has workflow enabled
+    * 
+    * @param  HookEvent $event
+    */
+   public function hookRemoveCFFieldsFromEditPage(HookEvent $event){
+      $form = $event->return;
+
+      $workflowFieldNames = $this->cfMainModule->getWorkflowFields();
+
+      $fieldsToFilter = $form->find('name='.implode('|',$workflowFieldNames));
+
+      if(!count($fieldsToFilter)) return;
+
+      foreach($fieldsToFilter as $f){
+         $f->parent->remove($f);
+      }
 
    }
 
