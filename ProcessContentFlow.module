@@ -55,6 +55,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    public function init(){
 
+      //don't run section below unless we are on our Process page
       if($this->page->id != $this->root_page_id) return;
 
       $this->page->setOutputFormatting(false); 
@@ -624,6 +625,23 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    public function getWorkflowFields(){
       return self::$workflowFields;
+   }
+
+
+   /**
+    * Return list of templates with workflow enabled
+    */
+   public function getTemplatesWithWorkflow(){
+      $page = $this->pages->get($this->root_page_id);
+
+      if($page instanceof NullPage) return array();
+
+      $templates = $page->templates_with_workflow;
+
+      if(empty($templates))
+         return array();
+      else
+         return $page->templates_with_workflow;
    }
 
    /**
