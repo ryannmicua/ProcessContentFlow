@@ -575,8 +575,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $statuses = array(
          'pitch' => 'Pitch',
          'assigned' => 'Assigned',
-         'draft' => 'Draft',
-         'pending-review' => 'Pending Review'
+         'draft' => 'Draft (In Progress)',
+         'pending' => 'Pending Review',
+         'ready' => 'Ready to Publish'
          );
 
       switch($type){
@@ -879,8 +880,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(!$this->fields->get('cf_status')){
          $field = new Field();
          $field->name = 'cf_status';
-         $field->label = 'Publishing Status';
-         $field->description = '';
+         $field->label = 'Workflow Status';
+         $field->description = 'Defines the keys stages in the workflow. Select the stage this page is in.';
          $field->labelFieldName = 'title';
          $field->type = wire('modules')->get('FieldtypePage');
          $field->inputfield = 'InputfieldSelect';
