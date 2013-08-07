@@ -42,7 +42,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          'version' => 1,
          'summary' => 'Adds an editorial workflow inside ProcessWire.',
          'author' => 'Pogidude',
-         //'singular' => true,
+         'singular' => true,
          //'autoload' => true,
          'href' => 'https://github.com/ryannmicua/ProcessContentFlow',
          'permission' => self::PERMISSION_NAME,
@@ -615,6 +615,14 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    protected function saveModuleData(){
       return $this->modules->saveModuleConfigData($this, $this->data);
+   }
+
+
+   /**
+    * Returns list of workflow field names in array format
+    */
+   public function getWorkflowFields(){
+      return self::$workflowFields;
    }
 
    /**
