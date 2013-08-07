@@ -58,8 +58,9 @@ class PageContentFlow extends WireData implements Module{
       if($this->isPost) return;
 
       //check if this page should have a workflow tab 
-      if(count($this->cfRootPage->templates_with_workflow)){
-         foreach($this->cfRootPage->templates_with_workflow as $temp){
+      $templatesWithWorkflow = $this->cfMainModule->getTemplatesWithWorkflow();
+      if(count($templatesWithWorkflow)){
+         foreach($templatesWithWorkflow as $temp){
             if($temp->id == $this->page->template->id){
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
