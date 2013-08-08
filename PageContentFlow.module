@@ -99,7 +99,9 @@ class PageContentFlow extends WireData implements Module{
     * ======================================
     */
 
-
+   /**
+    * @Hooks to ProcessPageEdit::buildForm
+    */
    public function hookPageBuildForm(HookEvent $event){
       $form = $event->return;
 
@@ -128,7 +130,8 @@ class PageContentFlow extends WireData implements Module{
     * place. We want to show workflow fields under the 'Workflow' tab
     *
     * NOTE: If this hook is being run then it means that the current page has workflow enabled
-    * 
+    *
+    * @Hooks to ProcessPageEdit::buildForm
     * @param  HookEvent $event
     */
    public function hookRemoveCFFieldsFromEditPage(HookEvent $event){
