@@ -901,6 +901,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->label = 'Workflow Status';
          $field->description = 'Defines the keys stages in the workflow. Select the stage this page is in.';
          $field->labelFieldName = 'title';
+         $field->required = 1;
          $field->type = wire('modules')->get('FieldtypePage');
          $field->inputfield = 'InputfieldSelect';
          $field->derefAsPage = FieldtypePage::derefAsPageOrFalse;
