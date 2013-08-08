@@ -117,7 +117,7 @@ class PageContentFlow extends WireData implements Module{
       $field->attr('class', $field->class); 
       $field->attr('value', 'Previewer'); 
 
-      $event->return = $form->append($field); 
+      //$event->return = $form->append($field); 
 
    }
 
