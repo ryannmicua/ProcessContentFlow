@@ -975,7 +975,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          foreach($defaultStatuses as $name => $title){
             $p = new Page();
             $p->parent = $statusRoot;
-            $p->template = $holderTemplate;
+            $p->template = $templates->get(self::STATUS_TEMPLATE_NAME);
             $p->name = $name;
             $p->title = $title;
             $p->save();
