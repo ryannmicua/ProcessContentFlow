@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Adds method hook to Page objects for doing stuff when cfStatus changes
+ * Page::cfChangedStatus($oldStatus, $newStatus) see bottom of this file to see description
+ * about parameters
+ */
+
 class PageContentFlow extends WireData implements Module{
 
    protected $id;
@@ -9,6 +15,7 @@ class PageContentFlow extends WireData implements Module{
    protected $cfRootPage;
    protected $cfMainModule;
    protected $stop = false;
+   protected $statusBeforeSave;
 
    public static function getModuleInfo() {
       return array(
@@ -37,7 +44,13 @@ class PageContentFlow extends WireData implements Module{
 
       // determine if we're going to be dealing with a save/post request
       $this->isPost = ($this->input->post->id > 0 && (((int) $this->input->post->id) === $this->page->id)) || $this->config->ajax && (count($_POST) || isset($_SERVER['HTTP_X_FIELDNAME'])); 
-   
+
+      /** Add our hooks **/
+      $this->addHook('Page::cfChangedStatus', $this, 'hookCFChangedStatus');
+
+      wire()->pages->addHookAfter('saveReady', $this, 'getCFStatusBeforeSave');
+      $this->addHookAfter('Fieldtype::savePageField', $this, 'checkChangeStatus');
+
    }
 
    public function ready(){
@@ -64,6 +77,7 @@ class PageContentFlow extends WireData implements Module{
             if($temp->id == $this->page->template->id){
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
                $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+               
                break;
             }
          }
@@ -92,6 +106,7 @@ class PageContentFlow extends WireData implements Module{
 
       return $wrapper;
    }
+
 
    /**
     * ======================================
@@ -151,4 +166,75 @@ class PageContentFlow extends WireData implements Module{
 
    }
 
+
+   /**
+    * Get status before page is saved
+    */
+   public function getCFStatusBeforeSave(HookEvent $event){
+      $page = $event->arguments('page');
+      $statusFieldName = 'cf_status';
+
+      if(!$page->fields->hasField($statusFieldName)) return;
+
+      //we'll need the clone later
+      $clone = clone $page;
+
+      // get the old value of the field
+      //$page->uncache();
+      $clone->uncache();
+      $this->pageStatusBeforeSave = $clone->$statusFieldName;   
+      
+   }
+
+
+   /**
+    * check if status has changed and trigger Page::cfChangedStatus hook
+    *
+    * hooks into Fieldtype::savePageField
+    */
+   protected function checkChangeStatus(HookEvent $event){
+      $page = $event->arguments('page');
+      $field = $event->arguments('field');
+      $statusFieldName = 'cf_status';
+
+      //page field did not save to database
+      if(!$event->return) return;
+      
+      //field is cf_status field
+      if($field->name != $statusFieldName) return;
+      
+      $new = $page->get($statusFieldName);
+
+      //don't do anything if cf_status hasn't changed
+      if($this->pageStatusBeforeSave->id == $new->id) return;
+
+      //trigger status change
+      $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
+   }
+
+
+   /**
+    * hook Page::cfChangeStatus
+    */
+   protected function hookCFChangedStatus(HookEvent $event){
+      $old = $event->arguments(0);
+      $new = $event->arguments(1);
+
+      //$this->message('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
+
+      $notice = new NoticeMessage('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
+      $notice->class = $this->className();
+      wire('notices')->prepend($notice);
+
+      $event->return = true;
+   }
+
 }
+
+
+/**
+ * Description of Page::cfChangedStatus()
+ *
+ * both $oldStatus and $newStatus are just Page objects under /admin/Content Flow/Status
+Page::cfChangedStatus($oldStatus, $newStatus)
+ */
