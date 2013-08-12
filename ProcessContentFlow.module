@@ -28,6 +28,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    const PERMISSION_NAME = 'contentflow-access';
    const ROOT_PAGE_NAME = 'contentflow';
    const ROOT_TEMPLATE_NAME = 'contentflow';
+   const STATUS_TEMPLATE_NAME = 'contentflow-status';
    const HOLDER_TEMPLATE_NAME = 'contentflow-holder';
 
    public function __construct(){
@@ -555,10 +556,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
 
       //remove our custom templates
-      $this->deleteCustomTemplates();
+      $this->removeCustomTemplates();
 
       //delete our fields
-      $this->deleteFields();
+      $this->removeFields();
 
    }
 
@@ -572,7 +573,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    protected function getStuff($type=''){
-      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME);
+      $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME, self::STATUS_TEMPLATE_NAME);
       $statuses = array(
          'pitch' => 'Pitch',
          'assigned' => 'Assigned',
@@ -803,7 +804,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       }
    }
 
-   protected function deleteCustomTemplates(){
+   protected function removeCustomTemplates(){
       foreach($this->getStuff('templates') as $tname){
          $temp = $this->templates->get($tname);
          if(!is_null($temp)){
@@ -916,7 +917,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    }
 
-   protected function deleteFields(){
+   protected function removeFields(){
 
       //remove workflow fields from templates (if any)
       $fieldNames = $this->getWorkflowFields();
