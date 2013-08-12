@@ -741,10 +741,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    
    protected function createCustomTemplates(){
-      $templatesToCreate = array( 
-         self::HOLDER_TEMPLATE_NAME,
-         self::ROOT_TEMPLATE_NAME
-      );
 
       foreach( $this->getStuff('templates') as $tname ){
 
