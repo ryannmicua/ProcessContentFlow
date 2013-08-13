@@ -41,7 +41,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       return array(
          'title' => 'Content Flow',
          'version' => 1,
-         'summary' => 'Adds an editorial workflow inside ProcessWire.',
+         'summary' => 'Adds an editorial/publishing workflow inside ProcessWire.',
          'author' => 'Pogidude',
          'singular' => true,
          //'autoload' => true,
@@ -284,7 +284,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * Process submission
     */
    protected function processSave(){
-      $message = 'Saved Settings';
+      $message = $this->_('Saved Settings');
       $post = $this->input->post;
       $page = $this->page;
       
@@ -297,7 +297,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if($page->save()){
          $this->message($message);
       } else {
-         $this->error('Problem saving settings');
+         $this->error($this->_('Problem saving settings'));
       }
 
       $this->processSaveRedirect($this->redirectUrl);
@@ -724,7 +724,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * For hooks to listen to when a field is removed from a template
     *
     */
-   public function ___fieldRemoved(Field $field, Template $template) { 
+   public function ___fieldRemoved($field, $template) { 
       $this->message(sprintf($this->_('Removed field "%1$s" from template/fieldgroup "%2$s"'), $field, $template)); 
    }
 
@@ -732,8 +732,15 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     * For hooks to listen to when a field is added to a template
     *
     */
-   public function ___fieldAdded(Field $field, Template $template) { 
+   public function ___fieldAdded($field, $template) { 
       $this->message(sprintf($this->_('Added field "%1$s" to template/fieldgroup "%2$s"'), $field, $template)); 
+   }
+
+   /**
+    *   
+    */
+   protected function systemFieldCreated(Field $field) { 
+      $this->message(sprintf($this->_('Removed field "%1$s" from template/fieldgroup "%2$s"'), $field, $template)); 
    }
 
    /**
@@ -812,13 +819,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $baseTemplate = $this->templates->get(self::ROOT_TEMPLATE_NAME);
       $baseTemplateFields = array('templates_with_workflow', 'process');
       if(is_null($baseTemplate)){
-         $this->error('Error adding fields to base template (' . self::ROOT_TEMPLATE_NAME . ') because it does not exist.');
+         $this->error(sprintf($this->_('Error adding fields to base template (%1$s) because it does not exist.'), self::ROOT_TEMPLATE_NAME));
       } else {
          foreach($baseTemplateFields as $fieldName){
             $baseTemplate->fields->add($fieldName);
-            if($baseTemplate->fields->save()){
-               $this->message('Added field ' . $fieldName . ' to template ' . $baseTemplate->name);
-            }  
+            $baseTemplate->fields->save();
+            $this->fieldAdded($fieldName, $baseTemplate); 
          }
       }
 
@@ -839,8 +845,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(!$this->fields->get('templates_with_workflow')){
          $field = new Field();
          $field->name = 'templates_with_workflow';
-         $field->label = 'Templates with workflow';
-         $field->description = 'Specify which templates should have publishing workflow';
+         $field->label = $this->_('Templates with workflow');
+         $field->description = $this->_('Specify which templates should have publishing workflow');
          $field->labelFieldName = 'label';
          $field->type = wire('modules')->get('FieldtypeTemplates');
          $field->flags = $this->field->flags | Field::flagSystem;
@@ -854,9 +860,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->templateTypes = $templateTypes;
 
          if($field->save()){
-            $this->message('Created system field: ' . $field->name);
+            $this->message(sprintf($this->_('Created system field: %1$s'), $field->name));
          } else {
-            $this->error('Problem creating system field: ' . $field->name);
+            $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
          }
 
       }
@@ -865,8 +871,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(!$this->fields->get('cf_status')){
          $field = new Field();
          $field->name = 'cf_status';
-         $field->label = 'Workflow Status';
-         $field->description = 'Defines the keys stages in the workflow. Select the stage this page is in.';
+         $field->label = $this->_('Workflow Status');
+         $field->description = $this->_('Defines the keys stages in the workflow. Select the stage this page is in.');
          $field->labelFieldName = 'title';
          $field->required = 1;
          $field->type = wire('modules')->get('FieldtypePage');
