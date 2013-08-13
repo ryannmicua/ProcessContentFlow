@@ -380,6 +380,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->append($this->buildFormDashboard());
       $form->append($this->buildFormNotificationSettings());
       $form->append($this->buildFormStatusSettings());
+      $form->append($this->buildFormWorkflowSettings());
 
       $saveField = $modules->get('InputfieldSubmit');
       $saveField->attr('name', 'submit_save');
@@ -422,7 +423,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'NotificationSettings');
-      $wrapper->attr('title', $this->_('Notification Settings'));
+      $wrapper->attr('title', $this->_('Notifications'));
 
       $field = $modules->get('InputfieldMarkup');
       $field->label = $this->_('My Markup');
@@ -443,12 +444,26 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
-      $wrapper->attr('title', $this->_('Status &amp; Workflow Settings'));
+      $wrapper->attr('title', $this->_('Custom Statuses'));
 
       $field = $modules->get('InputfieldMarkup');
-      $field->label = $this->_('Status Settings');
+      $field->label = $this->_('Custom Status Settings');
       $field->attr('value', '<h4>Status Settings</h4>'.print_r($this->page->templates_with_workflow,true).'text');
       $wrapper->append($field);
+
+      return $wrapper;
+   }
+
+   /**
+    * Build 'Workflow Settings' tab
+    */
+   protected function ___buildFormWorkflowSettings(){
+      $modules = $this->modules;
+      $page = $this->page;
+      
+      $wrapper = new InputfieldWrapper();
+      $wrapper->attr('id', __CLASS__ . 'WorkflowSettings');
+      $wrapper->attr('title', $this->_('Workflow'));
 
       //add templates_with_workflow field
       $field = $page->fields->get('templates_with_workflow');
@@ -462,23 +477,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $wrapper->append($fieldTemplates);
       }
 
-      return $wrapper;
-   }
-
-   /**
-    * Build 'Workflow Settings' tab
-    */
-   protected function ___buildWorkflowSettings(){
-      $modules = $this->modules;
-      $wrapper = new InputfieldWrapper();
-      $wrapper->attr('id', __CLASS__ . 'WorkflowSettings');
-      $wrapper->attr('title', $this->_('Workflow Settings'));
-
-      $field = $modules->get('InputfieldSelect');
-      $field->label = $this->_('Use workflow stages');
-      $field->attr('value', '<h4>Status Settings</h4>'.print_r($this->page->templates_with_workflow,true).'text');
-
-      $wrapper->append($field);
       return $wrapper;
    }
 
