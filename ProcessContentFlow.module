@@ -737,8 +737,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    /**
     *   
     */
-   protected function systemFieldCreated(Field $field) { 
-      $this->message(sprintf($this->_('Removed field "%1$s" from template/fieldgroup "%2$s"'), $field, $template)); 
+   protected function systemFieldCreated($field) { 
+      $this->message(sprintf($this->_('System field "%1$s" created'), $field));
    }
 
    /**
