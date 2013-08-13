@@ -25,6 +25,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       'cf_status'
       );
 
+   /* fields that will be added to status template */
+   protected static $statusFields = array(
+      'cf_status_description'
+      );
+
    const PERMISSION_NAME = 'contentflow-access';
    const ROOT_PAGE_NAME = 'contentflow';
    const ROOT_TEMPLATE_NAME = 'contentflow';
@@ -508,7 +513,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //set up root template
       $this->setupRootPageAndTemplate();
-      
+
+      //set up status template
+      $this->setupStatusTemplate();
    }
 
    public function ___uninstall(){
@@ -529,7 +536,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $this->error('Problem deleting Content Flow page and all children at: ' . $cfPath);
          }
       }
-
+      
       //remove our custom templates
       $this->removeCustomTemplates();
 
@@ -601,6 +608,14 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
     */
    public function getWorkflowFields(){
       return self::$workflowFields;
+   }
+
+
+   /**
+    * Returns list of status field name in array format
+    */
+   public function getStatusFields(){
+      return self::$statusFields;
    }
 
 
@@ -778,6 +793,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    }
 
    protected function removeCustomTemplates(){
+
+      $this->prepareTemplatesForRemoval();
+
       foreach($this->getStuff('templates') as $tname){
          $temp = $this->templates->get($tname);
          if(!is_null($temp)){
@@ -803,7 +821,20 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             }
          }
       }
+
+      $this->templatesRemoved();
    }
+
+   protected function ___prepareTemplatesForRemoval(){
+
+      //remove cf fields from contentflow-status template
+      $statusFields = array('cf_status_description');
+      $template = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+      $this->removeTemplateFields(array($template), $statusFields);
+   }
+
+   protected function ___templatesRemoved(){}
+
 
    protected function ___setupRootPageAndTemplate(){
 
@@ -840,6 +871,17 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    }
 
+
+   protected function setupStatusTemplate(){
+      $template = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+
+      if(!$template) return; //TODO: error messages?
+
+      $fieldNames = $this->getStatusFields();
+
+      $this->addTemplateFields(array($template), $fieldNames);
+   }
+
    protected function createFields(){
       //create 'templates with workflow' field
       if(!$this->fields->get('templates_with_workflow')){
@@ -860,7 +902,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->templateTypes = $templateTypes;
 
          if($field->save()){
-            $this->message(sprintf($this->_('Created system field: %1$s'), $field->name));
+            $this->systemFieldCreated($field);
          } else {
             $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
          }
@@ -884,11 +926,30 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->parent_id = $this->status_root_page_id;
          $field->flags = $this->field->flags | Field::flagSystem;
          if($field->save()){
-            $this->message('Created system field: ' . $field->name);
+            $this->systemFieldCreated($field);
          } else {
             $this->error('Problem creating system field: ' . $field->name);
          }
       }
+
+      /**
+       * Create 'cf_status_description' field
+       * This field is added to 'contentflow-status' type pages
+       */
+      if(!$this->fields->get('cf_status_description')){
+         $field = new Field();
+         $field->name = 'cf_status_description';
+         $field->label = $this->_('Status Description');
+         $field->description = $this->_('Describe what this custom status is to be used for. This field is primarily for administrative use only.');
+         $field->type = wire('modules')->get('FieldtypeTextarea');
+         $field->flags = $this->field->flags | Field::flagSystem;
+         if($field->save()){
+            $this->systemFieldCreated($field);
+         } else {
+            $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
+         }
+      }
+      
 
    }
 
@@ -897,18 +958,12 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       //remove workflow fields from templates (if any)
       $fieldNames = $this->getWorkflowFields();
       $templates = $this->templates;
-      foreach($templates as $template){
-         foreach($template->fields as $field){
-            if(in_array($field->name, $fieldNames)){
-               $template->fields->remove($field);
-               $template->fields->save();
-               $this->fieldRemoved($field,$template);
-            }
-         }
-      }
+      $this->removeTemplateFields($templates, $fieldNames);
+
+      $statusFields = $this->getStatusFields();
 
       //now remove all contentflow fields including workflow fields
-      $fields = array_merge($fieldNames, array('templates_with_workflow'));
+      $fields = array_merge($fieldNames, $statusFields, array('templates_with_workflow'));
 
       foreach($fields as $fname){
          $field = null;
