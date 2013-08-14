@@ -90,7 +90,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->form = $this->buildForm($this->form);
       $this->form->setTrackChanges();
 
-      if($this->isPost && count($_POST)) $this->processSave();
+      if($this->isPost && count($_POST)){ $this->processSave(); }
 
       return $this->renderUI();
    }
@@ -274,6 +274,48 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->session->redirect($this->page->url);
    }
 
+   protected function ___executeAddNewStatus(){
+      $page = $this->page;
+      $modules = $this->modules;
+
+      $form = $this->modules->get('InputfieldForm');
+      $form->attr('method', 'post');
+      $form->attr('action', 'addnewstatus');
+      $form->description = $this->_('Add new status');
+
+      $statusTemplate = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+
+      $inputfield = $statusTemplate->fields->getField('title',true)->getInputfield($page);
+      $inputfield->label = $this->_('Title');
+      $inputfield->attr('name', 'cf_status_title');
+      $form->append($inputfield); 
+
+      $inputfield = $statusTemplate->fields->getField('cf_status_description')->getInputfield($page);
+      $form->append($inputfield);
+
+      $field = $this->modules->get('InputfieldPageName');
+      $field->parentPage = $this->parent; 
+      $field->attr('name', 'cf_status_name'); 
+      $field->required = true;
+      $field->collapsed = Inputfield::collapsedYes;
+      $form->append($field);
+
+      $saveField = $modules->get('InputfieldSubmit');
+      $saveField->attr('name', 'add_new_status');
+      $saveField->attr('id', 'submitSave');
+      $saveField->class .= ' head_button_clone';
+      $saveField->attr('value', $this->_('Add New Status'));
+      $form->append($saveField);
+
+      $form->setTrackChanges();
+
+      if($this->input->post->add_new_status) $this->processInputAddNewStatus($form);
+
+      $this->breadcrumbs->add(new Breadcrumb($this->page->url, $this->page->get('title|name')));
+
+      return $form->render();
+   }
+
    /**
     * Render our pages
     */
@@ -365,6 +407,77 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $this->redirectUrl = 'workflowtemplates?templates=' . implode(',', $inputfield->value); 
       }
       
+   }
+
+   protected function processInputAddNewStatus(Inputfield $form){
+      $page = new Page();
+      $parent = $this->pages->get($this->status_root_page_id);
+      $template = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+      $languages = $this->languages;
+
+      if($parent instanceof NullPage) throw new WireException($this->_('Parent for status page does not exist.'));
+
+      if(is_null($template)) throw new WireException($this->_('Required template for status page "'.self::STATUS_TEMPLATE_NAME.'"" does not exist.'));
+
+      //if(!$parent->isAllowedTemplate($template)) throw new WireException("You don't have access to add pages with template '$template'");
+
+      $form->processInput($this->input->post);
+
+      $nameField = $form->children->get('cf_status_name');
+      $name = $nameField->value;
+
+      if(!strlen($name)) {
+         $this->error($this->_("Missing required field: Name")); 
+         return false; 
+      }
+
+      $titleField = $form->children->get('cf_status_title');
+      $title = $titleField->value;
+      if(!strlen($title)) {
+         $this->error($this->_("Missing required field: Title")); 
+         return false; 
+      }
+
+      $descriptionField = $form->children->get('cf_status_description');
+      $description = $nameField->value;
+
+      if($parent->child("name=$name, include=all")->id) {
+         $nameField->error($this->_("The name you selected is already in use. Please select another.")); 
+         return false;
+      }
+
+      $page->template = $template;
+      $page->parent = $parent;
+      $page->name = $name;
+      $page->title = $title;
+      $page->cf_status_description = $description;
+      $page->sort = $parent->numChildren;
+
+      foreach($page->fields as $field) {
+         $f = $form->children->get($field->name); 
+         if($f) {
+            if($languages && $f->useLanguages) {
+               // account for language fields (most likely FieldtypePageTitleLanguage)
+               $value = $page->get($field->name); 
+               if(is_object($value)) $value->setFromInputfield($f);
+            } else {
+               $value = $f->attr('value'); 
+            }
+            $page->set($field->name, $value); 
+         } else {
+            $publishNow = false; // non-global fields means we won't publish yet
+         }
+      }
+
+      try {
+         $this->pages->save($page); 
+      } catch(Exception $e) {
+         $this->error($e->getMessage()); 
+         return false;
+      }
+
+      $this->session->message(sprintf($this->_('New status "%1$s" created.'), $page->title));
+      $this->session->redirect($this->page->url);
    }
 
    /**
@@ -459,7 +572,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $fieldset->label = $this->_('Add New Status');
       $fieldset->description = $this->_('Create your own statuses to add structure to your publishing workflow.');
 
-      $statusTemplate = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+      $inputbutton = $modules->get('InputfieldButton');
+      $inputbutton->attr('id+name', 'AddStatusBtn');
+      $inputbutton->attr('value', $this->_('Add New Status'));
+      $inputbutton->attr('href', './addnewstatus');
+      $fieldset->append($inputbutton);
 
       $inputfield = $modules->get('InputfieldPageTitle');
       $inputfield->label = $this->_('Title');
@@ -468,14 +585,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $inputfield->attr('id+name', 'cf_status_title');
       $fieldset->append($inputfield);
 
+      $statusTemplate = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+
       $inputfield = $statusTemplate->fields->getField('cf_status_description')->getInputfield($page);
       $inputfield->columnWidth = 60;
       $fieldset->append($inputfield);
-
-      $inputbutton = $modules->get('InputfieldSubmit');
-      $inputbutton->attr('id+name', 'cf_status_add');
-      $inputbutton->attr('value', 'Add New Status');
-      $fieldset->append($inputbutton);
 
       $wrapper->append($fieldset);
 
