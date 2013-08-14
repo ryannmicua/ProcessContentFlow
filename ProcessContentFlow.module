@@ -314,7 +314,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function ___processInput(Inputfield $form, $level = 0){
       static $skipFields = array(
          'submit_save',
-         'isPost'
+         'isPost',
+         'cf_status_title',
+         'cf_status_description',
+         'cf_status_add'
          );
 
       if(!$level){
@@ -382,8 +385,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->attr('id', __CLASS__);
 
       //build our tabs
-      $form->append($this->buildFormDashboard());
-      $form->append($this->buildFormNotificationSettings());
+      //$form->append($this->buildFormDashboard());
+      //$form->append($this->buildFormNotificationSettings());
       $form->append($this->buildFormStatusSettings());
       $form->append($this->buildFormWorkflowSettings());
 
@@ -451,10 +454,30 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $wrapper->attr('id', __CLASS__ . 'StatusSettings');
       $wrapper->attr('title', $this->_('Custom Statuses'));
 
-      $field = $modules->get('InputfieldMarkup');
-      $field->label = $this->_('Custom Status Settings');
-      $field->attr('value', '<h4>Status Settings</h4>'.print_r($this->page->templates_with_workflow,true).'text');
-      $wrapper->append($field);
+      //Fieldset for 'Add new status'
+      $fieldset = $modules->get('InputfieldFieldset');
+      $fieldset->label = $this->_('Add New Status');
+      $fieldset->description = $this->_('Create your own statuses to add structure to your publishing workflow.');
+
+      $statusTemplate = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+
+      $inputfield = $modules->get('InputfieldPageTitle');
+      $inputfield->label = $this->_('Title');
+      $inputfield->description = $this->_('The title/name used to identify the status.');
+      $inputfield->columnWidth = 40;
+      $inputfield->attr('id+name', 'cf_status_title');
+      $fieldset->append($inputfield);
+
+      $inputfield = $statusTemplate->fields->getField('cf_status_description')->getInputfield($page);
+      $inputfield->columnWidth = 60;
+      $fieldset->append($inputfield);
+
+      $inputbutton = $modules->get('InputfieldSubmit');
+      $inputbutton->attr('id+name', 'cf_status_add');
+      $inputbutton->attr('value', 'Add New Status');
+      $fieldset->append($inputbutton);
+
+      $wrapper->append($fieldset);
 
       return $wrapper;
    }
