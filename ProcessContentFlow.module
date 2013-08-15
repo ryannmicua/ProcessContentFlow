@@ -938,7 +938,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $temp->fieldgroup = $fg;
             $temp->noGlobal = 1;
             $temp->nameContentTab = 1;
-            $temp->flags = $this->template->flags | Template::flagSystem;
+            $temp->flags = $temp->flags | Template::flagSystem;
             if($temp->save()){
                $this->message('Created template: ' . $tname);
             } else {
@@ -1057,7 +1057,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->description = $this->_('Specify which templates should have publishing workflow');
          $field->labelFieldName = 'label';
          $field->type = wire('modules')->get('FieldtypeTemplates');
-         $field->flags = $this->field->flags | Field::flagSystem;
+         $field->flags = $field->flags | Field::flagSystem;
 
          //set initial template types available
          $templateTypes = array();
@@ -1090,7 +1090,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->inputfield = 'InputfieldSelect';
          $field->derefAsPage = FieldtypePage::derefAsPageOrFalse;
          $field->parent_id = $this->status_root_page_id;
-         $field->flags = $this->field->flags | Field::flagSystem;
+         $field->flags = $field->flags | Field::flagSystem;
          if($field->save()){
             $this->systemFieldCreated($field);
          } else {
@@ -1108,7 +1108,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->label = $this->_('Status Description');
          $field->description = $this->_('Describe what this custom status is to be used for. This field is primarily for administrative use only.');
          $field->type = wire('modules')->get('FieldtypeTextarea');
-         $field->flags = $this->field->flags | Field::flagSystem;
+         $field->flags = $field->flags | Field::flagSystem;
          if($field->save()){
             $this->systemFieldCreated($field);
          } else {
@@ -1184,7 +1184,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //create status pages
       $checkStatusRoot = $pages->get("parent=$cfRootPage,name=contentflow-statuses");
-      if(!$checkStatuses->id){
+      if(!$checkStatusRoot->id){
          $pStatuses = new Page();
          $pStatuses->template = $holderTemplate;
          $pStatuses->parent = $cfRootPage;
