@@ -686,6 +686,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $this->error('Problem deleting Content Flow page and all children at: ' . $cfPath);
          }
       }
+
+      //delete other pages that use our templates
+      $this->deleteCustomPages();
       
       //remove our custom templates
       $this->removeCustomTemplates();
@@ -803,7 +806,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    /**
     * Add specified fields to specified templates
     * @param array $templates    array of templates names/template id/Template objects
-    * @param array $fieldNames   array of field names i.e. array('title', 'body');
+    * @param array $fieldNames   array of field names/Field objects
     */
    protected function addTemplateFields($templates = null, $fieldNames = null){
       
@@ -824,7 +827,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          } else {
             foreach($fieldNames as $fieldName){
 
-               if(!$field = $this->fields->get($fieldName)) continue;
+               if(!is_object($fieldName))
+                  if(!$field = $this->fields->get($fieldName)) continue;
 
                if(!$template->fields->has($field)){
                   $template->fields->add($field);
@@ -978,7 +982,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function ___prepareTemplatesForRemoval(){
 
       //remove cf fields from contentflow-status template
-      $statusFields = array('cf_status_description');
+      $statusFields = $this->getStatusFields();
       $template = $this->templates->get(self::STATUS_TEMPLATE_NAME);
       $this->removeTemplateFields(array($template), $statusFields);
    }
@@ -1029,7 +1033,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       $fieldNames = $this->getStatusFields();
 
-      $this->addTemplateFields(array($template), $fieldNames);
+      //these additional fields should already be available in the system
+      $additionalFields = array('roles');
+
+      $this->addTemplateFields(array($template), array_merge($fieldNames, $additionalFields));
    }
 
    protected function createFields(){
@@ -1099,7 +1106,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
             $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
          }
       }
-      
 
    }
 
@@ -1198,5 +1204,18 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //save module data
       $this->saveModuleData();
+   }
+
+   protected function deleteCustomPages(){
+      $templates = $this->getStuff('templates');
+      $pages = $this->pages->find("template=".implode('|', $templates));
+      foreach($pages as $page){
+         $path = $page->url;
+         if($this->pages->delete($page,true)){
+            $this->message(sprintf($this->_('Deleted content flow type page and all children at: %1$s'), $path));
+         } else {
+            $this->error(sprintf($this->_('Problem deleting content flow type page and all children at: %1$s'), $path));
+         }
+      }
    }
 }
