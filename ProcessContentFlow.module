@@ -1041,7 +1041,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $this->addTemplateFields(array($template), array_merge($fieldNames, $additionalFields));
 
       /* save selected fields in the context of the contentflow-status template/fieldgroup only */
-      $field = $template->fields->get('roles');
+
+      //get the field in the context of the fieldgroup. set 2nd parameter to TRUE
+      $field = $template->fields->getField('roles', true);
       $field->label = $this->_('Notify Roles');
       $field->description = $this->_('Select the roles (user groups) that should receive notifications when a page is set to this status.');
       $this->fields->saveFieldgroupContext($field, $template->fields);
