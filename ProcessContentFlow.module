@@ -296,6 +296,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $field = $this->modules->get('InputfieldPageName');
       $field->parentPage = $this->parent; 
       $field->attr('name', 'cf_status_name'); 
+      $field->label = $this->_('System Name');
       $field->required = true;
       $field->collapsed = Inputfield::collapsedYes;
       $form->append($field);
