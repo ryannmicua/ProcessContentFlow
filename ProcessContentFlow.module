@@ -579,7 +579,30 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $inputbutton->attr('href', './addnewstatus');
       $fieldset->append($inputbutton);
 
+      $table = $this->modules->get('MarkupAdminDataTable');
+      $table->headerRow(array(
+         $this->_('Title'),
+         $this->_('Description'),
+         $this->_('Action')
+         ));
+      $table->setEncodeEntities(false);
+      $table->setSortable(true);
 
+      $statusRoot = $this->pages->get($this->status_root_page_id);
+      if($statusRoot->numChildren){
+         foreach($statusRoot->children('template='.self::STATUS_TEMPLATE_NAME) as $s){
+            $row = array();
+            $row["$s->name "] = $this->config->urls->admin . "page/edit/?id={$s->id}";
+            $row[] = $s->cf_status_description;
+            $table->row($row);
+         }
+      }
+
+      $field = $modules->get('InputfieldMarkup');
+      $field->label = $this->_('Available Statuses');
+      $field->description = $this->_('List of available statuses');
+      $field->value = $table->render();
+      $fieldset->append($field);
 
       $wrapper->append($fieldset);
 
