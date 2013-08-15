@@ -827,7 +827,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          } else {
             foreach($fieldNames as $fieldName){
 
-               if(!is_object($fieldName))
+               if(is_object($fieldName))
+                  $field = $fieldName;
+               else
                   if(!$field = $this->fields->get($fieldName)) continue;
 
                if(!$template->fields->has($field)){
