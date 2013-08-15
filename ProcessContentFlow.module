@@ -570,8 +570,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //Fieldset for 'Add new status'
       $fieldset = $modules->get('InputfieldFieldset');
-      $fieldset->label = $this->_('Add New Status');
-      $fieldset->description = $this->_('Create your own statuses to add structure to your publishing workflow.');
+      $fieldset->label = $this->_('Statuses');
+      $fieldset->description = $this->_('Create your own statuses to add structure to your publishing workflow. Edit existing ones and drag and drop to change their order.');
 
       $inputbutton = $modules->get('InputfieldButton');
       $inputbutton->attr('id+name', 'AddStatusBtn');
@@ -579,18 +579,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $inputbutton->attr('href', './addnewstatus');
       $fieldset->append($inputbutton);
 
-      $inputfield = $modules->get('InputfieldPageTitle');
-      $inputfield->label = $this->_('Title');
-      $inputfield->description = $this->_('The title/name used to identify the status.');
-      $inputfield->columnWidth = 40;
-      $inputfield->attr('id+name', 'cf_status_title');
-      $fieldset->append($inputfield);
 
-      $statusTemplate = $this->templates->get(self::STATUS_TEMPLATE_NAME);
-
-      $inputfield = $statusTemplate->fields->getField('cf_status_description')->getInputfield($page);
-      $inputfield->columnWidth = 60;
-      $fieldset->append($inputfield);
 
       $wrapper->append($fieldset);
 
