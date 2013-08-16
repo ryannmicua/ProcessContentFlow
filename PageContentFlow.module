@@ -10,7 +10,7 @@ class PageContentFlow extends WireData implements Module{
 
    protected $id;
    protected $page;
-   protected $user;
+   protected $currentUser;
    protected $isPost = false;
    protected $cfRootPage;
    protected $cfMainModule;
@@ -38,7 +38,7 @@ class PageContentFlow extends WireData implements Module{
          return;
       }
 
-      $this->user = $this->user;
+      $this->currentUser = $this->user;
       $this->page = $this->pages->get($this->id);
       if($this->page instanceof NullPage){ $this->stop = true; return; }
 
