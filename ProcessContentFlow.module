@@ -27,7 +27,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    /* fields that will be added to status template */
    protected static $statusFields = array(
-      'cf_status_description'
+      'cf_status_description',
+      'cf_users'
       );
 
    const PERMISSION_NAME = 'contentflow-access';
@@ -582,8 +583,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $table = $this->modules->get('MarkupAdminDataTable');
       $table->headerRow(array(
          $this->_('Title'),
-         $this->_('Description'),
-         $this->_('Action')
+         $this->_('Description')
          ));
       $table->setEncodeEntities(false);
       $table->setSortable(true);
@@ -592,7 +592,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if($statusRoot->numChildren){
          foreach($statusRoot->children('template='.self::STATUS_TEMPLATE_NAME) as $s){
             $row = array();
-            $row["$s->name "] = $this->config->urls->admin . "page/edit/?id={$s->id}";
+            $row["$s->title "] = $this->config->urls->admin . "page/edit/?id={$s->id}";
             $row[] = $s->cf_status_description;
             $table->row($row);
          }
@@ -1048,6 +1048,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $field->description = $this->_('Select the roles (user groups) that should receive notifications when a page is set to this status.');
       $this->fields->saveFieldgroupContext($field, $template->fields);
 
+      $field = $template->fields->getField('cf_users', true);
+      $field->label = $this->_('Notify Users');
+      $field->description = $this->_('Select the users that should receive notifications when a page is set to this status.');
+      $this->fields->saveFieldgroupContext($field, $template->fields);
+
    }
 
    protected function createFields(){
@@ -1110,6 +1115,28 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $field->label = $this->_('Status Description');
          $field->description = $this->_('Describe what this custom status is to be used for. This field is primarily for administrative use only.');
          $field->type = wire('modules')->get('FieldtypeTextarea');
+         $field->flags = $field->flags | Field::flagSystem;
+         if($field->save()){
+            $this->systemFieldCreated($field);
+         } else {
+            $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
+         }
+      }
+
+      /**
+       * Create 'cf_users' field
+       * This field will list all users as checkbox
+       */
+      if(!$this->fields->get('cf_users')){
+         $field = new Field();
+         $field->name = 'cf_users';
+         $field->label = $this->_('Users');
+         $field->type = wire('modules')->get('FieldtypePage');
+
+         $field->labelFieldName = 'name';
+         $field->findPagesSelector = 'template=user,sort=name';
+         $field->inputfield = 'InputfieldCheckboxes';
+         $field->derefAsPage = FieldtypePage::derefAsPageArray;
          $field->flags = $field->flags | Field::flagSystem;
          if($field->save()){
             $this->systemFieldCreated($field);
