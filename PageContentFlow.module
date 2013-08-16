@@ -210,6 +210,7 @@ class PageContentFlow extends WireData implements Module{
 
       //trigger status change
       $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
+      $this->changedStatus($this->pageStatusBeforeSave, $new, $page);
    }
 
 
@@ -228,6 +229,62 @@ class PageContentFlow extends WireData implements Module{
 
       $event->return = true;
    }
+
+
+  /**
+   * =============================
+   * CF Method Hooks and friends go below
+   * =============================
+   */
+  
+  /**
+   * Hook called  a page has changed publishing status
+   * !Note: technically, this hook is called after the cf_status field (of the page) has changed status
+   * 
+   * @param $old previous status (contentflow-status type page) the page was set to
+   * @param $old previous status (contentflow-status type page) the page was set to
+   * @param Page $page the page that changed status
+   */
+  public function ___changedStatus($old, $new, Page $page){
+    //TODO: should we notify users/roles in old status?
+    
+    $cfUsers = $this->getUsersToNotify($new);
+
+  }
+
+
+  /**
+   * Returns PageArray of user objects
+   *
+   * Makes a list (PageArray) of users that should be notified based of the passed status.
+   * Users are selected from the cf_users and roles fields.
+   * 
+   * @param  Page   $status 
+   * @return PageArray
+   */
+  protected function getUsersToNotify(Page $status){
+    //specific users that should be notified
+    $cfUsers = $status->cf_users;
+
+    //get users from selected roles that should be notified
+    $cfRoles = $status->roles;
+
+    if(count($cfRoles)){
+
+      foreach($this->users as $user){
+
+        //do not include users who have been selected already
+        if($cfUsers->has($user)) continue;
+
+        foreach($cfRoles as $r){
+          if($user->roles->has($r))
+            $cfUsers->add($user);
+        }
+      }
+    }
+
+    return $cfUsers;
+  }
 
 }
 
