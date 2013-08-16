@@ -48,8 +48,8 @@ class PageContentFlow extends WireData implements Module{
       /** Add our hooks **/
       $this->addHook('Page::cfChangedStatus', $this, 'hookCFChangedStatus');
 
-      wire()->pages->addHookAfter('saveReady', $this, 'getCFStatusBeforeSave');
-      $this->addHookAfter('Fieldtype::savePageField', $this, 'checkChangeStatus');
+      wire()->pages->addHookAfter('saveReady', $this, 'hookGetCFStatusBeforeSave');
+      $this->addHookAfter('Fieldtype::savePageField', $this, 'hookCheckChangeStatus');
 
    }
 
@@ -170,7 +170,7 @@ class PageContentFlow extends WireData implements Module{
    /**
     * Get status before page is saved
     */
-   public function getCFStatusBeforeSave(HookEvent $event){
+   public function hookGetCFStatusBeforeSave(HookEvent $event){
       $page = $event->arguments('page');
       $statusFieldName = 'cf_status';
 
@@ -192,7 +192,7 @@ class PageContentFlow extends WireData implements Module{
     *
     * hooks into Fieldtype::savePageField
     */
-   protected function checkChangeStatus(HookEvent $event){
+   protected function hookCheckChangeStatus(HookEvent $event){
       $page = $event->arguments('page');
       $field = $event->arguments('field');
       $statusFieldName = 'cf_status';
