@@ -107,11 +107,11 @@ class PageContentFlow extends WireData implements Module{
       $page = $this->page;
       $modules = wire('modules');
 
-      //add 'roles' and 'cf_users' field
       $fieldset = $modules->get('InputfieldFieldset');
       $fieldset->label = $this->_('Notifications');
       $fieldset->description = $this->_('Select the users and roles (user groups) that should receive notifications when the workflow status of this page is updated.');
 
+      //add cf_users field
       $field = $page->template->fields->getField('cf_users');
       $origInputfield = $field->getInputfield($page);
       if(!$origInputfield){
@@ -142,6 +142,20 @@ class PageContentFlow extends WireData implements Module{
 
         $fieldset->append($inputfield);
       }
+
+      //add roles field
+      $field = $page->template->fields->getField('roles');
+      $inputfield = $field->getInputfield($page);
+      if(!$inputfield){
+         $this->error('Could not display Notify Roles field');
+      } else {
+
+        $inputfield->columnWidth = 50;        
+        $inputfield->value = $page->get($field->name);
+
+        $fieldset->append($inputfield);
+      }
+
 
       $wrapper->append($fieldset);
 
