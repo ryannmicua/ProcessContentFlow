@@ -103,11 +103,59 @@ class PageContentFlow extends WireData implements Module{
       return $wrapper;
    }
 
+   protected function ___buildFormNotifications(Inputfield $wrapper){
+      $page = $this->page;
+      $modules = wire('modules');
+
       //add 'roles' and 'cf_users' field
-      $fieldset = wire('modules')->get('InputfieldFieldset');
+      $fieldset = $modules->get('InputfieldFieldset');
+      $fieldset->label = $this->_('Notifications');
+      $fieldset->description = $this->_('Select the users and roles (user groups) that should receive notifications when the workflow status of this page is updated.');
+
+      $field = $page->template->fields->getField('cf_users');
+      $origInputfield = $field->getInputfield($page);
+      if(!$origInputfield){
+         $this->error('Could not display Notify Users field');
+      } else {
+        $inputfield = $modules->get('InputfieldCheckboxes');
+        $inputfield->attr('name', $origInputfield->attr('name'));
+        $inputfield->attr('id', $origInputfield->attr('id'));
+        $inputfield->label = $origInputfield->label;
+        $inputfield->description = $origInputfield->description;
+        //$inputfield->value = $page->get($field->name);
+        $inputfield->columnWidth = 50;
+        $inputfield->table = true;
+        
+        $value = $origInputfield->attr('value');
+        if($value instanceof Page) $inputfield->attr('value', $value->id); //derefAsPage
+        if($value instanceof PageArray) foreach($value as $v) $inputfield->attr('value', $v->id); //derefAsPageArray
+
+        $children = $origInputfield->getSelectablePages($page);
+        if($children) foreach($children as $child){
+          $label = $this->getUserLabelFieldName($origInputfield->labelFieldName, $child);
+          $inputfield->addOption($child->id, $label);
+        }
+
+        $fieldset->append($inputfield);
+      }
+
+      $wrapper->append($fieldset);
 
       return $wrapper;
+
    }
+
+   /**
+    * Returns label field to be used when building own multi select fieldpage
+    */
+    public function ___getUserLabelFieldName($labelFieldName = '', WireData $page){
+        $label = $labelFieldName ? $page->get($labelFieldName) : $page->name;
+
+        if($page->display_name)
+          $label = $page->display_name . " ($label)";
+
+        return $label;
+    }
 
 
    /**
@@ -128,7 +176,9 @@ class PageContentFlow extends WireData implements Module{
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'WorkFlow');
       $wrapper->attr('title', $this->_('Publishing Workflow'));
+      
       $wrapper = $this->buildFormWorkFlow($wrapper);
+      $wrapper = $this->buildFormNotifications($wrapper);
 
       if($contentTab->id){
          $event->return = $form->insertAfter($wrapper, $contentTab);
