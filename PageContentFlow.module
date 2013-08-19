@@ -85,7 +85,7 @@ class PageContentFlow extends WireData implements Module{
       
    }
 
-   protected function ___buildFormWorkFlowTab(InputfieldWrapper $wrapper){
+   protected function ___buildFormWorkFlow(Inputfield $wrapper){
       $modules = $this->modules;
       $page = $this->page;
 
@@ -99,6 +99,9 @@ class PageContentFlow extends WireData implements Module{
          $inputfield->value = $page->get($field->name);
          $wrapper->append($inputfield);
       }
+
+      return $wrapper;
+   }
 
       //add 'roles' and 'cf_users' field
       $fieldset = wire('modules')->get('InputfieldFieldset');
@@ -125,7 +128,7 @@ class PageContentFlow extends WireData implements Module{
       $wrapper = new InputfieldWrapper();
       $wrapper->attr('id', __CLASS__ . 'WorkFlow');
       $wrapper->attr('title', $this->_('Publishing Workflow'));
-      $wrapper = $this->buildFormWorkFlowTab($wrapper);
+      $wrapper = $this->buildFormWorkFlow($wrapper);
 
       if($contentTab->id){
          $event->return = $form->insertAfter($wrapper, $contentTab);
