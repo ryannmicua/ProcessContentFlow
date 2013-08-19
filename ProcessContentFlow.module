@@ -666,6 +666,22 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       //set up status template
       $this->setupStatusTemplate();
+
+
+      //create our default statuses
+      $statusRoot = $this->pages->get("id={$this->status_root_page_id}");
+      if(!$statusRoot->numChildren){
+         $defaultStatuses = $this->getStuff('status');
+         foreach($defaultStatuses as $name => $statusFields){
+            $p = new Page();
+            $p->parent = $statusRoot;
+            $p->template = $this->templates->get(self::STATUS_TEMPLATE_NAME);
+            $p->name = $name;
+            $p->title = $statusFields['title'];
+            $p->cf_status_description = $statusFields['cf_status_description'];
+            $p->save();
+         }
+      }
    }
 
    public function ___uninstall(){
@@ -710,11 +726,11 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected function getStuff($type=''){
       $templates = array( self::ROOT_TEMPLATE_NAME, self::HOLDER_TEMPLATE_NAME, self::STATUS_TEMPLATE_NAME);
       $statuses = array(
-         'pitch' => 'Pitch',
-         'assigned' => 'Assigned',
-         'draft' => 'Draft (In Progress)',
-         'pending' => 'Pending Review',
-         'ready' => 'Ready to Publish'
+         'pitch' => array( 'title' => $this->_('Pitch'), 'cf_status_description' => $this->_('Idea proposed; waiting for acceptance')),
+         'assigned' => array( 'title' => $this->_('Assigned'), 'cf_status_description' => $this->_('Content assigned to writer.')),
+         'draft' => array('title' => $this->_('Draft (In Progress)'), 'cf_status_description' => $this->_('Page content is under construction; not ready for review or publication.')),
+         'pending' => array( 'title' => $this->_('Pending Review'), 'cf_status_description' => $this->_('Content needs to be reviewed by an editor')),
+         'ready' => array('title' => $this->_('Ready to Publish'), 'cf_status_description' => $this->_('Content is good to go.'))
          );
 
       switch($type){
@@ -1226,19 +1242,6 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          $statusRoot = $checkStatusRoot;
       }
       $this->setModuleData('status_root_page_id', $statusRoot->id);
-
-      //create our default statuses
-      if(!$statusRoot->numChildren){
-         $defaultStatuses = $this->getStuff('status');
-         foreach($defaultStatuses as $name => $title){
-            $p = new Page();
-            $p->parent = $statusRoot;
-            $p->template = $templates->get(self::STATUS_TEMPLATE_NAME);
-            $p->name = $name;
-            $p->title = $title;
-            $p->save();
-         }
-      }
 
       //save module data
       $this->saveModuleData();
