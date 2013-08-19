@@ -85,9 +85,13 @@ class PageContentFlow extends WireData implements Module{
     
   }
 
-  protected function ___buildFormWorkFlow(Inputfield $wrapper){
+  protected function ___buildFormWorkFlow(){
     $modules = $this->modules;
     $page = $this->page;
+
+    $wrapper = new InputfieldWrapper();
+    $wrapper->attr('id', __CLASS__ . 'WorkFlow');
+    $wrapper->attr('title', $this->_('Publishing Workflow'));
 
     //add cf_status field
     $field = $page->template->fields->getField('cf_status');
@@ -103,9 +107,13 @@ class PageContentFlow extends WireData implements Module{
     return $wrapper;
   }
 
-  protected function ___buildFormNotifications(Inputfield $wrapper){
+  protected function ___buildFormNotifications(){
     $page = $this->page;
     $modules = wire('modules');
+
+    $wrapper = new InputfieldWrapper();
+    $wrapper->attr('id', __CLASS__ . 'Notifications');
+    $wrapper->attr('title', $this->_('Notifications'));
 
     $fieldset = $modules->get('InputfieldFieldset');
     $fieldset->label = $this->_('Notifications');
@@ -191,17 +199,15 @@ class PageContentFlow extends WireData implements Module{
     //get the 'Content' tab input field wrapper so we can append our tab after this
     $contentTab = $form->children('id=ProcessPageEditContent')->first();
 
-    $wrapper = new InputfieldWrapper();
-    $wrapper->attr('id', __CLASS__ . 'WorkFlow');
-    $wrapper->attr('title', $this->_('Publishing Workflow'));
-    
-    $wrapper = $this->buildFormWorkFlow($wrapper);
-    $wrapper = $this->buildFormNotifications($wrapper);
+    $workflow = $this->buildFormWorkFlow();
+    $notifications = $this->buildFormNotifications();
 
     if($contentTab->id){
-       $event->return = $form->insertAfter($wrapper, $contentTab);
+       $event->return = $form->insertAfter($workflow, $contentTab);
+       $event->return = $form->insertAfter($notifications, $workflow);
     } else {
-       $event->return = $form->append($wrapper);
+       $event->return = $form->append($workflow);
+       $event->return = $form->append($notifications);
     }
 
 
