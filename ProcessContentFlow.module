@@ -253,7 +253,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       if(!empty($templatesAdd)){
          try{
-            $this->addTemplateFields($templatesAdd, self::$workflowFields);
+            $this->addTemplateFields($templatesAdd, $this->getWorkflowFields());
          }catch(Exception $e){
             $this->error($e->getMessage());
          }
@@ -261,7 +261,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
       if(!empty($templatesRemove)){
          try{
-            $this->removeTemplateFields($templatesRemove, self::$workflowFields);
+            $this->removeTemplateFields($templatesRemove, $this->getWorkflowFields());
          }catch(Exception $e){
             $this->error($e->getMessage());
          }
