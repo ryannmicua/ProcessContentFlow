@@ -22,7 +22,9 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
    /* fields that will be added to templates that have workflow enabled */
    protected static $workflowFields = array(
-      'cf_status'
+      'cf_status',
+      'cf_users',
+      'roles'
       );
 
    /* fields that will be added to status template */
@@ -254,6 +256,20 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       if(!empty($templatesAdd)){
          try{
             $this->addTemplateFields($templatesAdd, $this->getWorkflowFields());
+
+            foreach($templatesAdd as $t){
+               //get the field in the context of the fieldgroup. set 2nd parameter to TRUE
+               $field = $t->fields->getField('roles', true);
+               $field->label = $this->_('Notify Roles (User Groups)');
+               $field->description = '';
+               $this->fields->saveFieldgroupContext($field, $t->fields);
+
+               $field = $t->fields->getField('cf_users', true);
+               $field->label = $this->_('Notify Users');
+               $field->description = '';
+               $this->fields->saveFieldgroupContext($field, $t->fields);
+            }
+
          }catch(Exception $e){
             $this->error($e->getMessage());
          }
