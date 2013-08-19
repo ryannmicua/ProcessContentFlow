@@ -24,13 +24,14 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
    protected static $workflowFields = array(
       'cf_status',
       'cf_users',
-      'roles'
+      'cf_roles'
       );
 
    /* fields that will be added to status template */
    protected static $statusFields = array(
       'cf_status_description',
-      'cf_users'
+      'cf_users',
+      'cf_roles'
       );
 
    const PERMISSION_NAME = 'contentflow-access';
@@ -257,9 +258,10 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
          try{
             $this->addTemplateFields($templatesAdd, $this->getWorkflowFields());
 
+            /*
             foreach($templatesAdd as $t){
                //get the field in the context of the fieldgroup. set 2nd parameter to TRUE
-               $field = $t->fields->getField('roles', true);
+               $field = $t->fields->getField('cf_roles', true);
                $field->label = $this->_('Notify Roles (User Groups)');
                $field->description = '';
                $this->fields->saveFieldgroupContext($field, $t->fields);
@@ -269,6 +271,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
                $field->description = '';
                $this->fields->saveFieldgroupContext($field, $t->fields);
             }
+            */
 
          }catch(Exception $e){
             $this->error($e->getMessage());
@@ -1068,14 +1071,14 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $fieldNames = $this->getStatusFields();
 
       //these additional fields should already be available in the system
-      $additionalFields = array('roles');
+      $additionalFields = array();
 
       $this->addTemplateFields(array($template), array_merge($fieldNames, $additionalFields));
 
       /* save selected fields in the context of the contentflow-status template/fieldgroup only */
 
       //get the field in the context of the fieldgroup. set 2nd parameter to TRUE
-      $field = $template->fields->getField('roles', true);
+      $field = $template->fields->getField('cf_roles', true);
       $field->label = $this->_('Notify Roles');
       $field->description = $this->_('Select the roles (user groups) that should receive notifications when a page is set to this status.');
       $this->fields->saveFieldgroupContext($field, $template->fields);
@@ -1167,6 +1170,28 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
 
          $field->labelFieldName = 'name';
          $field->findPagesSelector = 'template=user,sort=name';
+         $field->inputfield = 'InputfieldCheckboxes';
+         $field->derefAsPage = FieldtypePage::derefAsPageArray;
+         $field->flags = $field->flags | Field::flagSystem;
+         if($field->save()){
+            $this->systemFieldCreated($field);
+         } else {
+            $this->error(sprintf($this->_('Problem creating system field: %1$s'), $field->name));
+         }
+      }
+
+      /**
+       * Create 'cf_roles' field
+       * This field will list all roles as checkbox
+       */
+      if(!$this->fields->get('cf_roles')){
+         $field = new Field();
+         $field->name = 'cf_roles';
+         $field->label = $this->_('Roles (User Groups)');
+         $field->type = wire('modules')->get('FieldtypePage');
+
+         $field->labelFieldName = 'name';
+         $field->findPagesSelector = 'template=role,sort=name';
          $field->inputfield = 'InputfieldCheckboxes';
          $field->derefAsPage = FieldtypePage::derefAsPageArray;
          $field->flags = $field->flags | Field::flagSystem;
