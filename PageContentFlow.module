@@ -283,7 +283,8 @@ class PageContentFlow extends WireData implements Module{
     //don't do anything if cf_status hasn't changed
     if($this->pageStatusBeforeSave->id == $new->id) return;
 
-    //trigger status change
+    //trigger status change.
+    //NOTE: Still not sure which one to keep.
     $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
     $this->changedStatus($this->pageStatusBeforeSave, $new, $page);
   }
