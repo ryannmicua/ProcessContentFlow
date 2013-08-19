@@ -16,6 +16,7 @@ class PageContentFlow extends WireData implements Module{
   protected $cfMainModule;
   protected $stop = false;
   protected $statusBeforeSave;
+  protected $usersToNotify;
 
   public static function getModuleInfo() {
     return array(
@@ -37,6 +38,8 @@ class PageContentFlow extends WireData implements Module{
        $this->stop = true;
        return;
     }
+
+    $this->usersToNotify = new PageArray();
 
     $this->currentUser = $this->user;
     $this->page = $this->pages->get($this->id);
@@ -178,7 +181,7 @@ class PageContentFlow extends WireData implements Module{
         $label = $labelFieldName ? $page->get($labelFieldName) : $page->name;
 
         if($page->display_name)
-          $label = $page->display_name . " ($label)";
+          $label = $page->display_name . " ($label) {$page->id}";
 
         return $label;
     }
@@ -318,13 +321,13 @@ class PageContentFlow extends WireData implements Module{
    * !Note: technically, this hook is called after the cf_status field (of the page) has changed status
    * 
    * @param $old previous status (contentflow-status type page) the page was set to
-   * @param $old previous status (contentflow-status type page) the page was set to
+   * @param $new new status (contentflow-status type page) the page was set to
    * @param Page $page the page that changed status
    */
   public function ___changedStatus($old, $new, Page $page){
     //TODO: should we notify users/roles in old status?
     
-    $cfUsers = $this->getUsersToNotify($new);
+    $cfUsers = $this->buildListUsersToNotify($new, $page);
 
   }
 
@@ -336,15 +339,52 @@ class PageContentFlow extends WireData implements Module{
    * Users are selected from the cf_users and roles fields.
    * 
    * @param  Page   $status 
+   * @param  Page   $page  current page being saved
    * @return PageArray
    */
-  protected function getUsersToNotify(Page $status){
+  protected function ___buildListUsersToNotify(Page $status, Page $page){
+    /**
+     * Get users/roles that should be notified as specified in the status
+     */
+    $userList = new PageArray();
+    $rolesList = new PageArray();
+
     //specific users that should be notified
     $cfUsers = $status->cf_users;
+    if(count($cfUsers))
+      $userList->import($cfUsers);
+
+    $pageUsers = $page->cf_users;
+    if(count($pageUsers))
+      $userList->import($pageUsers); //PW will take care not to include duplicates
+
 
     //get users from selected roles that should be notified
-    $cfRoles = $status->roles;
+    $cfRoles = $status->cf_roles;
+    $pageRoles = $page->cf_roles;
 
+    if(count($cfRoles))
+      $rolesList->import($cfRoles);
+
+    if(count($pageRoles))
+      $rolesList->import($pageRoles);
+
+
+    //Now get the users from the rolesList
+    if(count($rolesList)){
+      foreach($this->users as $user){
+        //do not include users who have been selected already
+        if($userList->has($user)) continue;
+
+        foreach($rolesList as $r){
+          if($user->roles->has($r)){
+            $userList->add($user);
+            continue; //user is already in the list
+          }
+        }
+      }
+    }
+    
     if(count($cfRoles)){
 
       foreach($this->users as $user){
@@ -354,12 +394,22 @@ class PageContentFlow extends WireData implements Module{
 
         foreach($cfRoles as $r){
           if($user->roles->has($r))
-            $cfUsers->add($user);
+            $userList->add($user);
         }
       }
     }
 
-    return $cfUsers;
+    $this->usersToNotify->import($userList); //save the list
+
+    return $userList;
+  }
+
+
+  /**
+   * Returns PageArray of users to notify
+   */
+  public function ___getListUsersToNotify(){
+    return $this->usersToNotify;
   }
 
 }
