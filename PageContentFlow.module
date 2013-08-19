@@ -144,7 +144,7 @@ class PageContentFlow extends WireData implements Module{
       }
 
       //add roles field
-      $field = $page->template->fields->getField('roles');
+      $field = $page->template->fields->getField('cf_roles');
       $inputfield = $field->getInputfield($page);
       if(!$inputfield){
          $this->error('Could not display Notify Roles field');
