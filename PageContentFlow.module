@@ -8,160 +8,160 @@
 
 class PageContentFlow extends WireData implements Module{
 
-   protected $id;
-   protected $page;
-   protected $currentUser;
-   protected $isPost = false;
-   protected $cfRootPage;
-   protected $cfMainModule;
-   protected $stop = false;
-   protected $statusBeforeSave;
+  protected $id;
+  protected $page;
+  protected $currentUser;
+  protected $isPost = false;
+  protected $cfRootPage;
+  protected $cfMainModule;
+  protected $stop = false;
+  protected $statusBeforeSave;
 
-   public static function getModuleInfo() {
-      return array(
-         'title' => 'Content Flow Tab', 
-         'version' => 1, 
-         'summary' => 'Adds a Publish Workflow Tab on pages.',
-         'singular' => true, 
-         'autoload' => true,
-         'requires' => array('ProcessContentFlow')
-      );
-   }
+  public static function getModuleInfo() {
+    return array(
+       'title' => 'Content Flow Tab', 
+       'version' => 1, 
+       'summary' => 'Adds a Publish Workflow Tab on pages.',
+       'singular' => true, 
+       'autoload' => true,
+       'requires' => array('ProcessContentFlow')
+    );
+  }
 
 
-   public function init(){
-      if(isset($_POST['id'])) $this->id = (int) $_POST['id']; 
-         else if(isset($_GET['id'])) $this->id = (int) $_GET['id']; 
+  public function init(){
+    if(isset($_POST['id'])) $this->id = (int) $_POST['id']; 
+       else if(isset($_GET['id'])) $this->id = (int) $_GET['id']; 
 
-      if(!$this->id){
-         $this->stop = true;
-         return;
-      }
+    if(!$this->id){
+       $this->stop = true;
+       return;
+    }
 
-      $this->currentUser = $this->user;
-      $this->page = $this->pages->get($this->id);
-      if($this->page instanceof NullPage){ $this->stop = true; return; }
+    $this->currentUser = $this->user;
+    $this->page = $this->pages->get($this->id);
+    if($this->page instanceof NullPage){ $this->stop = true; return; }
 
-      // determine if we're going to be dealing with a save/post request
-      $this->isPost = ($this->input->post->id > 0 && (((int) $this->input->post->id) === $this->page->id)) || $this->config->ajax && (count($_POST) || isset($_SERVER['HTTP_X_FIELDNAME'])); 
+    // determine if we're going to be dealing with a save/post request
+    $this->isPost = ($this->input->post->id > 0 && (((int) $this->input->post->id) === $this->page->id)) || $this->config->ajax && (count($_POST) || isset($_SERVER['HTTP_X_FIELDNAME'])); 
 
-      /** Add our hooks **/
-      $this->addHook('Page::cfChangedStatus', $this, 'hookCFChangedStatus');
+    /** Add our hooks **/
+    $this->addHook('Page::cfChangedStatus', $this, 'hookCFChangedStatus');
 
-      wire()->pages->addHookAfter('saveReady', $this, 'hookGetCFStatusBeforeSave');
-      $this->addHookAfter('Fieldtype::savePageField', $this, 'hookCheckChangeStatus');
+    wire()->pages->addHookAfter('saveReady', $this, 'hookGetCFStatusBeforeSave');
+    $this->addHookAfter('Fieldtype::savePageField', $this, 'hookCheckChangeStatus');
 
-   }
+  }
 
-   public function ready(){
+  public function ready(){
 
-      if($this->stop) return;
+    if($this->stop) return;
 
-      $this->cfMainModule = $this->modules->get('ProcessContentFlow');
+    $this->cfMainModule = $this->modules->get('ProcessContentFlow');
 
-      $this->cfRootPage = $this->pages->get($this->cfMainModule->root_page_id);
+    $this->cfRootPage = $this->pages->get($this->cfMainModule->root_page_id);
 
-      if($this->cfRootPage instanceOf NullPage){
-         $this->error('Could not load Content Flow base page.');
-         $this->stop = true;
-         return;
-      }
+    if($this->cfRootPage instanceOf NullPage){
+       $this->error('Could not load Content Flow base page.');
+       $this->stop = true;
+       return;
+    }
 
-      //don't run code below if we have a post request
-      if($this->isPost) return;
+    //don't run code below if we have a post request
+    if($this->isPost) return;
 
-      //check if this page should have a workflow tab 
-      $templatesWithWorkflow = $this->cfMainModule->getTemplatesWithWorkflow();
-      if(count($templatesWithWorkflow)){
-         foreach($templatesWithWorkflow as $temp){
-            if($temp->id == $this->page->template->id){
-               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
-               $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
-               
-               break;
-            }
-         }
-      }
+    //check if this page should have a workflow tab 
+    $templatesWithWorkflow = $this->cfMainModule->getTemplatesWithWorkflow();
+    if(count($templatesWithWorkflow)){
+       foreach($templatesWithWorkflow as $temp){
+          if($temp->id == $this->page->template->id){
+             $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
+             $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+             
+             break;
+          }
+       }
+    }
+    
+  }
+
+  protected function ___buildFormWorkFlow(Inputfield $wrapper){
+    $modules = $this->modules;
+    $page = $this->page;
+
+    //add cf_status field
+    $field = $page->template->fields->getField('cf_status');
+    $inputfield = $field->getInputfield($page);
+    if(!$inputfield){
+       $this->error('Could not display Workflow Status field');
+    } else {
+       
+       $inputfield->value = $page->get($field->name);
+       $wrapper->append($inputfield);
+    }
+
+    return $wrapper;
+  }
+
+  protected function ___buildFormNotifications(Inputfield $wrapper){
+    $page = $this->page;
+    $modules = wire('modules');
+
+    $fieldset = $modules->get('InputfieldFieldset');
+    $fieldset->label = $this->_('Notifications');
+    $fieldset->description = $this->_('Select the users and roles (user groups) that should receive notifications when the workflow status of this page is updated.');
+
+    //add cf_users field
+    $field = $page->template->fields->getField('cf_users');
+    $origInputfield = $field->getInputfield($page);
+    if(!$origInputfield){
+       $this->error('Could not display Notify Users field');
+    } else {
+
+      /**
+       * We build our own inputfield because we want to show the user's 
+       * display_name if it exists
+       */
+      $inputfield = $modules->get('InputfieldCheckboxes');
+      $inputfield->attr('name', $origInputfield->attr('name'));
+      $inputfield->attr('id', $origInputfield->attr('id'));
+      $inputfield->label = $origInputfield->label;
+      $inputfield->description = $origInputfield->description;
+      $inputfield->columnWidth = 50;
       
-   }
+      $origInputfield->value = $page->get($field->name);
+      $value = $origInputfield->value;
+      if($value instanceof Page) $inputfield->value = $value->id; //derefAsPage
+      if($value instanceof PageArray) foreach($value as $v) $inputfield->value = $v->id; //derefAsPageArray
 
-   protected function ___buildFormWorkFlow(Inputfield $wrapper){
-      $modules = $this->modules;
-      $page = $this->page;
-
-      //add cf_status field
-      $field = $page->template->fields->getField('cf_status');
-      $inputfield = $field->getInputfield($page);
-      if(!$inputfield){
-         $this->error('Could not display Workflow Status field');
-      } else {
-         
-         $inputfield->value = $page->get($field->name);
-         $wrapper->append($inputfield);
+      $children = $origInputfield->getSelectablePages($page);
+      if($children) foreach($children as $child){
+        $label = $this->getUserLabelFieldName($origInputfield->labelFieldName, $child);
+        $inputfield->addOption($child->id, $label);
       }
 
-      return $wrapper;
-   }
+      $fieldset->append($inputfield);
+    }
 
-   protected function ___buildFormNotifications(Inputfield $wrapper){
-      $page = $this->page;
-      $modules = wire('modules');
+    //add roles field
+    $field = $page->template->fields->getField('cf_roles');
+    $inputfield = $field->getInputfield($page);
+    if(!$inputfield){
+       $this->error('Could not display Notify Roles field');
+    } else {
 
-      $fieldset = $modules->get('InputfieldFieldset');
-      $fieldset->label = $this->_('Notifications');
-      $fieldset->description = $this->_('Select the users and roles (user groups) that should receive notifications when the workflow status of this page is updated.');
+      $inputfield->columnWidth = 50;        
+      $inputfield->value = $page->get($field->name);
 
-      //add cf_users field
-      $field = $page->template->fields->getField('cf_users');
-      $origInputfield = $field->getInputfield($page);
-      if(!$origInputfield){
-         $this->error('Could not display Notify Users field');
-      } else {
-
-        /**
-         * We build our own inputfield because we want to show the user's 
-         * display_name if it exists
-         */
-        $inputfield = $modules->get('InputfieldCheckboxes');
-        $inputfield->attr('name', $origInputfield->attr('name'));
-        $inputfield->attr('id', $origInputfield->attr('id'));
-        $inputfield->label = $origInputfield->label;
-        $inputfield->description = $origInputfield->description;
-        $inputfield->columnWidth = 50;
-        
-        $origInputfield->value = $page->get($field->name);
-        $value = $origInputfield->value;
-        if($value instanceof Page) $inputfield->value = $value->id; //derefAsPage
-        if($value instanceof PageArray) foreach($value as $v) $inputfield->value = $v->id; //derefAsPageArray
-
-        $children = $origInputfield->getSelectablePages($page);
-        if($children) foreach($children as $child){
-          $label = $this->getUserLabelFieldName($origInputfield->labelFieldName, $child);
-          $inputfield->addOption($child->id, $label);
-        }
-
-        $fieldset->append($inputfield);
-      }
-
-      //add roles field
-      $field = $page->template->fields->getField('cf_roles');
-      $inputfield = $field->getInputfield($page);
-      if(!$inputfield){
-         $this->error('Could not display Notify Roles field');
-      } else {
-
-        $inputfield->columnWidth = 50;        
-        $inputfield->value = $page->get($field->name);
-
-        $fieldset->append($inputfield);
-      }
+      $fieldset->append($inputfield);
+    }
 
 
-      $wrapper->append($fieldset);
+    $wrapper->append($fieldset);
 
-      return $wrapper;
+    return $wrapper;
 
-   }
+  }
 
    /**
     * Returns label field to be used when building own multi select fieldpage
@@ -176,128 +176,128 @@ class PageContentFlow extends WireData implements Module{
     }
 
 
-   /**
-    * ======================================
-    * HOOKS GO BELOW
-    * ======================================
-    */
+  /**
+   * ======================================
+   * HOOKS GO BELOW
+   * ======================================
+   */
 
-   /**
-    * @Hooks to ProcessPageEdit::buildForm
-    */
-   public function hookPageBuildForm(HookEvent $event){
-      $form = $event->return;
+  /**
+   * @Hooks to ProcessPageEdit::buildForm
+   */
+  public function hookPageBuildForm(HookEvent $event){
+    $form = $event->return;
 
-      //get the 'Content' tab input field wrapper so we can append our tab after this
-      $contentTab = $form->children('id=ProcessPageEditContent')->first();
+    //get the 'Content' tab input field wrapper so we can append our tab after this
+    $contentTab = $form->children('id=ProcessPageEditContent')->first();
 
-      $wrapper = new InputfieldWrapper();
-      $wrapper->attr('id', __CLASS__ . 'WorkFlow');
-      $wrapper->attr('title', $this->_('Publishing Workflow'));
-      
-      $wrapper = $this->buildFormWorkFlow($wrapper);
-      $wrapper = $this->buildFormNotifications($wrapper);
+    $wrapper = new InputfieldWrapper();
+    $wrapper->attr('id', __CLASS__ . 'WorkFlow');
+    $wrapper->attr('title', $this->_('Publishing Workflow'));
+    
+    $wrapper = $this->buildFormWorkFlow($wrapper);
+    $wrapper = $this->buildFormNotifications($wrapper);
 
-      if($contentTab->id){
-         $event->return = $form->insertAfter($wrapper, $contentTab);
-      } else {
-         $event->return = $form->append($wrapper);
-      }
-
-
-   }
+    if($contentTab->id){
+       $event->return = $form->insertAfter($wrapper, $contentTab);
+    } else {
+       $event->return = $form->append($wrapper);
+    }
 
 
-   /**
-    * Removes workflow fields from being returned when a page calls getInputfields() as in 
-    * ProcessPageEdit::buildForm() because we don't want workflow fields to show up the normal
-    * place. We want to show workflow fields under the 'Workflow' tab
-    *
-    * NOTE: If this hook is being run then it means that the current page has workflow enabled
-    *
-    * @Hooks to ProcessPageEdit::buildForm
-    * @param  HookEvent $event
-    */
-   public function hookRemoveCFFieldsFromEditPage(HookEvent $event){
-      $form = $event->return;
-
-      $workflowFieldNames = $this->cfMainModule->getWorkflowFields();
-
-      $fieldsToFilter = $form->find('name='.implode('|',$workflowFieldNames));
-
-      if(!count($fieldsToFilter)) return;
-
-      foreach($fieldsToFilter as $f){
-         $f->parent->remove($f);
-      }
-
-      $event->return = $form;
-
-   }
+  }
 
 
-   /**
-    * Get status before page is saved
-    */
-   public function hookGetCFStatusBeforeSave(HookEvent $event){
-      $page = $event->arguments('page');
-      $statusFieldName = 'cf_status';
+  /**
+  * Removes workflow fields from being returned when a page calls getInputfields() as in 
+  * ProcessPageEdit::buildForm() because we don't want workflow fields to show up the normal
+  * place. We want to show workflow fields under the 'Workflow' tab
+  *
+  * NOTE: If this hook is being run then it means that the current page has workflow enabled
+  *
+  * @Hooks to ProcessPageEdit::buildForm
+  * @param  HookEvent $event
+  */
+  public function hookRemoveCFFieldsFromEditPage(HookEvent $event){
+    $form = $event->return;
 
-      if(!$page->fields->hasField($statusFieldName)) return;
+    $workflowFieldNames = $this->cfMainModule->getWorkflowFields();
 
-      //we'll need the clone later
-      $clone = clone $page;
+    $fieldsToFilter = $form->find('name='.implode('|',$workflowFieldNames));
 
-      // get the old value of the field
-      //$page->uncache();
-      $clone->uncache();
-      $this->pageStatusBeforeSave = $clone->$statusFieldName;   
-      
-   }
+    if(!count($fieldsToFilter)) return;
 
+    foreach($fieldsToFilter as $f){
+       $f->parent->remove($f);
+    }
 
-   /**
-    * check if status has changed and trigger Page::cfChangedStatus hook
-    *
-    * hooks into Fieldtype::savePageField
-    */
-   protected function hookCheckChangeStatus(HookEvent $event){
-      $page = $event->arguments('page');
-      $field = $event->arguments('field');
-      $statusFieldName = 'cf_status';
+    $event->return = $form;
 
-      //page field did not save to database
-      if(!$event->return) return;
-      
-      //field is cf_status field
-      if($field->name != $statusFieldName) return;
-      
-      $new = $page->get($statusFieldName);
-
-      //don't do anything if cf_status hasn't changed
-      if($this->pageStatusBeforeSave->id == $new->id) return;
-
-      //trigger status change
-      $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
-      $this->changedStatus($this->pageStatusBeforeSave, $new, $page);
-   }
+  }
 
 
-   /**
-    * hook Page::cfChangeStatus
-    */
-   protected function hookCFChangedStatus(HookEvent $event){
-      $old = $event->arguments(0);
-      $new = $event->arguments(1);
+  /**
+  * Get status before page is saved
+  */
+  public function hookGetCFStatusBeforeSave(HookEvent $event){
+    $page = $event->arguments('page');
+    $statusFieldName = 'cf_status';
 
-      //$this->message('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
+    if(!$page->fields->hasField($statusFieldName)) return;
 
-      $notice = new NoticeMessage('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
-      $notice->class = $this->className();
-      wire('notices')->prepend($notice);
+    //we'll need the clone later
+    $clone = clone $page;
 
-      $event->return = true;
-   }
+    // get the old value of the field
+    //$page->uncache();
+    $clone->uncache();
+    $this->pageStatusBeforeSave = $clone->$statusFieldName;   
+    
+  }
+
+
+  /**
+  * check if status has changed and trigger Page::cfChangedStatus hook
+  *
+  * hooks into Fieldtype::savePageField
+  */
+  protected function hookCheckChangeStatus(HookEvent $event){
+    $page = $event->arguments('page');
+    $field = $event->arguments('field');
+    $statusFieldName = 'cf_status';
+
+    //page field did not save to database
+    if(!$event->return) return;
+    
+    //field is cf_status field
+    if($field->name != $statusFieldName) return;
+    
+    $new = $page->get($statusFieldName);
+
+    //don't do anything if cf_status hasn't changed
+    if($this->pageStatusBeforeSave->id == $new->id) return;
+
+    //trigger status change
+    $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
+    $this->changedStatus($this->pageStatusBeforeSave, $new, $page);
+  }
+
+
+  /**
+  * hook Page::cfChangeStatus
+  */
+  protected function hookCFChangedStatus(HookEvent $event){
+    $old = $event->arguments(0);
+    $new = $event->arguments(1);
+
+    //$this->message('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
+
+    $notice = new NoticeMessage('Publishing status has changed from ' . $old->title . ' to ' . $new->title);
+    $notice->class = $this->className();
+    wire('notices')->prepend($notice);
+
+    $event->return = true;
+  }
 
 
   /**
@@ -305,7 +305,7 @@ class PageContentFlow extends WireData implements Module{
    * CF Method Hooks and friends go below
    * =============================
    */
-  
+
   /**
    * Hook called  a page has changed publishing status
    * !Note: technically, this hook is called after the cf_status field (of the page) has changed status
