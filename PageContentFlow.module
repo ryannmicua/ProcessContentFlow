@@ -117,18 +117,22 @@ class PageContentFlow extends WireData implements Module{
       if(!$origInputfield){
          $this->error('Could not display Notify Users field');
       } else {
+
+        /**
+         * We build our own inputfield because we want to show the user's 
+         * display_name if it exists
+         */
         $inputfield = $modules->get('InputfieldCheckboxes');
         $inputfield->attr('name', $origInputfield->attr('name'));
         $inputfield->attr('id', $origInputfield->attr('id'));
         $inputfield->label = $origInputfield->label;
         $inputfield->description = $origInputfield->description;
-        //$inputfield->value = $page->get($field->name);
         $inputfield->columnWidth = 50;
-        $inputfield->table = true;
         
-        $value = $origInputfield->attr('value');
-        if($value instanceof Page) $inputfield->attr('value', $value->id); //derefAsPage
-        if($value instanceof PageArray) foreach($value as $v) $inputfield->attr('value', $v->id); //derefAsPageArray
+        $origInputfield->value = $page->get($field->name);
+        $value = $origInputfield->value;
+        if($value instanceof Page) $inputfield->value = $value->id; //derefAsPage
+        if($value instanceof PageArray) foreach($value as $v) $inputfield->value = $v->id; //derefAsPageArray
 
         $children = $origInputfield->getSelectablePages($page);
         if($children) foreach($children as $child){
