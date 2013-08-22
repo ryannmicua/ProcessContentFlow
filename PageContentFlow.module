@@ -15,7 +15,7 @@ class PageContentFlow extends WireData implements Module{
   protected $cfRootPage;
   protected $cfMainModule;
   protected $stop = false;
-  protected $statusBeforeSave;
+  protected $pageStatusBeforeSave;
   protected $usersToNotify;
 
   public static function getModuleInfo() {
@@ -80,6 +80,7 @@ class PageContentFlow extends WireData implements Module{
           if($temp->id == $this->page->template->id){
              $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookRemoveCFFieldsFromEditPage');
              $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookPageBuildForm');
+             $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'hookEditFormDescription');
              
              break;
           }
@@ -242,6 +243,26 @@ class PageContentFlow extends WireData implements Module{
 
     $event->return = $form;
 
+  }
+
+
+  /**
+   * Add our status text to the form description (if the page is unpublished)
+   *
+   * NOTE: If this hook is triggered then it means the current page has workflow enabled
+   * 
+   * @hooks to ProcessPageEdit::buildForm
+   * @param HookEvent $event
+   */
+  public function hookEditFormDescription(HookEvent $event){
+    $form = $event->return;
+
+    if($this->page->is(Page::statusUnpublished) && $this->page->cf_status){
+      //append our status text to the form description
+      if($form->description) $form->description .= sprintf($this->_(' [status: "%1$s"]'), $this->page->cf_status->get('title|name'));
+    }
+
+    $event->return = $form; //not really needed since $form is an object and is copied by reference
   }
 
 
