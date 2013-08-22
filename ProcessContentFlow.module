@@ -519,7 +519,7 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $form->attr('id', __CLASS__);
 
       //build our tabs
-      //$form->append($this->buildFormDashboard());
+      $form->append($this->buildFormDashboard());
       //$form->append($this->buildFormNotificationSettings());
       $form->append($this->buildFormStatusSettings());
       $form->append($this->buildFormWorkflowSettings());
@@ -549,12 +549,83 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $wrapper->attr('id', __CLASS__ . 'Dashboard');
       $wrapper->attr('title', $this->_('Dashboard'));
 
-      $field = $modules->get('InputfieldMarkup');
-      $field->label = $this->_('My Markup');
-      $field->attr('value', '<pre><code>'.print_r($this->data,true).print_r($this->page->templates_with_workflow,true).'</code></pre>');
+      $fieldset = $modules->get('InputfieldFieldset');
+      $fieldset->label = $this->_('Content Dashboard');
+      $fieldset->description = $this->_('This is where you can view the pages under each status.');
 
-      $wrapper->append($field);
+      $masterTable = $modules->get('MarkupAdminDataTable');
+      $masterTable->headerRow(array(
+         $this->_('Title'),
+         //$this->_('Workflow Status'),
+         $this->_('Published?'),
+         $this->_('Created by')
+         ));
+      $masterTable->setEncodeEntities(false);
+      $masterTable->setSortable(true);
+
+      $statusRootPage = $this->pages->get($this->status_root_page_id);
+
+      if($statusRootPage instanceof NullPage){
+         $this->error($this->_('Status root page is not set.'));
+         $wrapper->add($fieldset);
+         return $wrapper;
+      }
+
+      if(!$statusRootPage->numChildren){
+         $wrapper->add($fieldset);
+         return $wrapper;
+      }
+
+      $statuses = $statusRootPage->children('template='.self::STATUS_TEMPLATE_NAME);
+
+      /*
+      //create checkboxes for status filter
+      $field = $modules->get('InputfieldCheckboxes');
+      $field->attr('id+name', 'filter_status');
+      $field->label = $this->_('Show only pages with the following status');
+      $field->optionColumns = 1;
+      foreach($statuses as $s){
+         $field->addOption($s->id, $s->title);
+      }
+      $fieldset->add($field);
+      */
+     
+      //show table
+      foreach($statuses as $status){
+         $fieldset->add($this->buildPagesWithStatusTable($status, $masterTable));
+      }
+
+      $wrapper->add($fieldset);
       return $wrapper;
+   }
+
+   protected function buildPagesWithStatusTable(Page $status, MarkupAdminDataTable $masterTable){
+      $table = clone $masterTable;
+
+      $pages = $this->pages->find("cf_status=$status,has_parent!={$this->config->trashPageID},include=all");
+
+      $field = $this->modules->get('InputfieldMarkup');
+      $field->label = $status->get('title|name');
+
+      if(!count($pages)){
+         //didn't find any pages
+         $field->collapsed = Inputfield::collapsedYes;
+         $field->value = $this->_('There are no pages with this status');
+         return $field;
+      }
+
+      foreach($pages as $page){
+         $row = array();
+         $row["$page->title "] = $this->config->urls->admin . "page/edit/?id={$page->id}";
+         $row[] = $page->is(Page::statusUnpublished) ? $this->_('No') : $this->_('Yes');
+         $createdBy = $page->createdUser;
+         $row["$createdBy->name "] = $this->config->urls->admin . "access/users/edit/?id={$createdBy->id}";
+         $table->row($row);
+      }
+
+      $field->value = $table->render();
+
+      return $field;
    }
 
    /**
