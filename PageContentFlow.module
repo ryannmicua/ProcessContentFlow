@@ -281,15 +281,15 @@ class PageContentFlow extends WireData implements Module{
     //field is cf_status field
     if($field->name != $statusFieldName) return;
     
-    $new = $page->get($statusFieldName);
+    $savedStatus = $page->get($statusFieldName);
 
     //don't do anything if cf_status hasn't changed
-    if($this->pageStatusBeforeSave->id == $new->id) return;
+    if($this->pageStatusBeforeSave->id == $savedStatus->id) return;
 
     //trigger status change.
     //NOTE: Still not sure which one to keep.
-    $page->cfChangedStatus($this->pageStatusBeforeSave, $new);
-    $this->changedStatus($this->pageStatusBeforeSave, $new, $page);
+    $page->cfChangedStatus($this->pageStatusBeforeSave, $savedStatus);
+    $this->changedStatus($this->pageStatusBeforeSave, $savedStatus, $page);
   }
 
 
@@ -338,7 +338,7 @@ class PageContentFlow extends WireData implements Module{
    * Makes a list (PageArray) of users that should be notified based of the passed status.
    * Users are selected from the cf_users and roles fields.
    * 
-   * @param  Page   $status 
+   * @param  Page   $status
    * @param  Page   $page  current page being saved
    * @return PageArray
    */
