@@ -550,8 +550,8 @@ class ProcessContentFlow extends Process implements Module, ConfigurableModule {
       $wrapper->attr('title', $this->_('Dashboard'));
 
       $fieldset = $modules->get('InputfieldFieldset');
-      $fieldset->label = $this->_('Content Dashboard');
-      $fieldset->description = $this->_('This is where you can view the pages under each status.');
+      $fieldset->label = $this->_('Content Status');
+      $fieldset->description = $this->_('This is where you can view the status of your content.');
 
       $masterTable = $modules->get('MarkupAdminDataTable');
       $masterTable->headerRow(array(
